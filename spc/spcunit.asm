@@ -263,8 +263,8 @@ _main_loop:
 ;-------------------------------------------------------------------------
 	cmp	SPC_PORT1, comms_v	; test for message
 	bne	ProcessComms		;
-ExitComms:
-					;---------------------------------
+ExitComms:				;
+	call	SlideVolumes		; perform volume sliding
 	bra	_main_loop		;
 ;-------------------------------------------------------------------------
 
@@ -442,7 +442,9 @@ CMD_MVOL:
 ;-------------------------------------------------------------------------
 CMD_RET:
 ;-------------------------------------------------------------------------
-	mov	SPC_PORT1, comms_v	; return to main loop
+	mov	SPC_PORT1, comms_v	; process data and return to main loop
+	call	ProcessKeyOff		;
+	call	UpdateDSP		;
 	jmp	ExitComms		;
 ;-------------------------------------------------------------------------
 CMD_KOF:
@@ -511,15 +513,20 @@ _no_offset:				;---------------------------------
 	or	SPC_DSPA, #04h		; set SRCN for voice
  	mov	SPC_DSPD, y		;
 					;---------------------------------
-	mov	a, channel_volume+x	; set volume level directly
-	mov	channel_rvolume+x, a	;
-					;---------------------------------
 	mov	y, bits+x		; set KON bit for voice
 	mov	a, #DSP_KON		;
 	movw	SPC_DSP, ya		;
 	mov	a, x			;
 	xcn	a			;
 	mov	SPC_DSPA, a		;
+					;---------------------------------
+	mov	a, channel_volume+x	; set volume level directly
+	mov	channel_rvolume+x, a	;
+	or	SPC_DSPA, #5		;
+	mov	SPC_DSPD, #0		;
+	or	SPC_DSPA, #7		;
+	mov	SPC_DSPD, a		;
+	and	SPC_DSPA, #0F0h		;
 					;---------------------------------
 	mov	y, #0			; clear data
 	mov	channel_srcn+x, y	;
@@ -532,13 +539,17 @@ _no_keyon:				;---------------------------------
 	inc	SPC_DSPA		;
 	eor	a, #127			;
 	mov	SPC_DSPD, a		;
+	inc	SPC_DSPA		;
 _skip_pan_update:			;---------------------------------
-	mov	a, channel_rvolume+x	; set volume level
-	or	SPC_DSPA, #5		;
-	mov	SPC_DSPD, #0		;
-	or	SPC_DSPA, #7		;
+	lsr	pitch_flags		; update pitch if flag is set
+	bcs	_skip_pitch_update	;
+	mov	a, channel_pitch_l+x	;
+	or	SPC_DSPA, #02h		;
 	mov	SPC_DSPD, a		;
-					;---------------------------------
+	mov	a, channel_pitch_h+x	;
+	inc	SPC_DSPA		;
+	mov	SPC_DSPD, a		;
+_skip_pitch_update:			;---------------------------------
 	mov	a, channel_ofs+x	; test sample offset
 	beq	_no_offset2		; (skip if 0)
 					;---------------------------------
@@ -557,12 +568,20 @@ _no_offset2:				;---------------------------------
 ;*************************************************************************
 ProcessKeyOff:
 ;*************************************************************************
-	mov	SPC_DSPA, #DSP_KOF	; set KOF
-	mov	SPC_DSPD, kof_flags	;
-	mov	kof_flags, #0		;
+	mov	x, #channel_volume-1	;
+	mov	a, #0			;---------------------------------
+_pko_loop:				; loop through kof bits and
+	inc	x			; clear channel volumes
+	lsr	kof_flags		;
+	bcc	_pko_nextbit		;
+	mov	(x), a			;
+_pko_nextbit:				;
+	bne	_pko_loop		;
 	ret				;
+;-------------------------------------------------------------------------
 	
-VS_RATE =5
+VS_RATE		=5
+GAIN_OFF	=10011110b
 
 ;*************************************************************************
 SlideVolumes:
@@ -572,45 +591,42 @@ SlideVolumes:
 ;-------------------------------------------------------------------------
 _sv_loop:
 ;-------------------------------------------------------------------------
+	mov	a, (x)			; special behavior for volume 0
+	beq	_sv_off			;---------------------------------
 	mov	a, channel_rvolume-channel_volume+x
-	beq	_off1			; AAAAAAAAAAAAAAAAAAAAAAAAAAHHHHHHHH
-	cmp	a, (x)			; slide volume for channel 0, 2, 4, 6
-	beq	_sv1			;
-	bcc	_up1			;
-_dn1:	sbc	a, #VS_RATE		;
-	cmp	a, (x)			;
-	bcs	_wr1			;
-	mov	a, (x)			;
-	bra	_wr1			;
-_off1:
-	
-_up1:	adc	a, #VS_RATE		;
-	cmp	a, (x)			;
-	bcc	_wr1			;
-	mov	a, (x)			;
-_wr1:	mov	SPC_DSPD, a		;
-	setc				;
-_sv1:	adc	SPC_DSPA, #0Fh		;
-	inc	x			;
+	cmp	a, (x)			; test slide direction
+	beq	_no_slide		;
+	bcc	_slide_up		;
 ;-------------------------------------------------------------------------
-	mov	a, channel_rvolume-channel_volume+x		
-	cmp	a, (x)			; slide volume for channel 1, 3, 5, 7
-	beq	_sv2			;
-	bcc	_up2			;
-_dn2:	sbc	a, #VS_RATE		;
+_slide_down:				; subtract and clamp to lower boundary
+	sbc	a, #VS_RATE		;
+	bmi	_c1			;
 	cmp	a, (x)			;
-	bcs	_wr2			;
-	mov	a, (x)			;
-	bra	_wr2			;
-_up2:	adc	a, #VS_RATE		;
-	cmp	a, (x)			;
-	bcc	_wr2			;
-	mov	a, (x)			;
-_wr2:	mov	SPC_DSPD, a		;
-	setc				;
-_sv2:	adc	SPC_DSPA, #0Fh		;
-	inc	x			;
+	bcs	_writegain		;
+_c1:	mov	a, (x)			;
+	bra	_writegain		;
 ;-------------------------------------------------------------------------
+_sv_off:				; set gain to decrease mode
+	mov	SPC_DSPD, #GAIN_OFF	;
+	mov	a, #0			;
+	bra	_writevol		;
+;-------------------------------------------------------------------------
+_slide_up:				; add and clamp to higher boundary
+	adc	a, #VS_RATE		;
+	cmp	a, (x)			;
+	bcc	_writegain		;
+	mov	a, (x)			;
+;-------------------------------------------------------------------------
+_writegain:				; set GAIN value
+	mov	SPC_DSPD, a		;
+;-------------------------------------------------------------------------
+_writevol:				; set volume level
+	mov	channel_rvolume-channel_volume+x, a
+	setc				;
+;-------------------------------------------------------------------------
+_no_slide:				; increment iterator
+	adc	SPC_DSPA, #0Fh		; [carry is set: add 10h]
+	inc	x			;
 	cmp	x, #channel_volume+8	;
 	bcc	_sv_loop		;
 ;-------------------------------------------------------------------------
