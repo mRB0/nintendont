@@ -71,6 +71,11 @@
 ; >> id vv -- --
 ; << -- mm -- --
 ;-------------------------------------------------------------
+; RESET	07	Reset system
+;
+; >> id vv -- --
+; << -- mm -- --
+;-------------------------------------------------------------
 ; KOF	08	Stop voices
 ;
 ; >> id vv -- aa
@@ -245,11 +250,9 @@ ProgramEntry:
 					;---------------------------------
 	mov	SPC_DSPA, #DSP_DIR	; set source dir
 	mov	SPC_DSPD, #SampleDirectory >> 8
-					;---------------------------------
-	mov	transfer_address, #(DataSector & 0ffh)	; setup transfer addresses
-	mov	transfer_address+1, #(DataSector >> 8)	;
-	mov	next_sample, #(SampleDirectory & 0ffh)	;
-	mov	next_sample+1, #(SampleDirectory >> 8)	;
+	
+	
+	call	ResetMemory
 					;---------------------------------
 	mov	a, #1			; generate bit table
 	mov	x, #bits		;
@@ -267,6 +270,14 @@ ExitComms:				;
 	call	SlideVolumes		; perform volume sliding
 	bra	_main_loop		;
 ;-------------------------------------------------------------------------
+
+;-------------------------------------------------------------------------
+ResetMemory:
+;-------------------------------------------------------------------------
+	mov	transfer_address, #(DataSector & 0ffh)	; setup transfer addresses
+	mov	transfer_address+1, #(DataSector >> 8)	;
+	mov	next_sample, #0
+	ret
 
 ;-------------------------------------------------------------------------
 ProcessComms:
@@ -300,7 +311,7 @@ CommandTable:
 	.word	CMD_ECEN		; 04
 	.word	CMD_MVOL		; 05
 	.word	CMD_RET			; 06
-	.word	0			; 07
+	.word	CMD_RESET		; 07
 	.word	CMD_KOF			; 08
 	.word	0			; 09
 	.word	0			; 0A
@@ -447,6 +458,13 @@ CMD_RET:
 	call	UpdateDSP		;
 	jmp	ExitComms		;
 ;-------------------------------------------------------------------------
+CMD_RESET:
+;-------------------------------------------------------------------------
+	mov	SPC_DSPA, #DSP_KOF	; turn off channels
+	mov	SPC_DSPD, #0FFh		;---------------------------------
+	call	ResetMemory		; reset memory
+	jmp	NextCommand_R		;
+;-------------------------------------------------------------------------
 CMD_KOF:
 ;-------------------------------------------------------------------------
 	or	kof_flags, SPC_PORT3	; add kof flags
@@ -470,13 +488,13 @@ CMD_VOL:
 	mov	x, SPC_PORT0		; check for panning change
 	mov	a, SPC_PORT2		;
 	bmi	nopan			;---------------------------------
-	mov	channel_panning-18h+x, a; copy pan
-	mov	a, !bits-10h+y		; set pan flag
+	mov	channel_panning-18h+x, a; copy pan and set flag
+	mov	a, !bits-10h+y		; 
 	or	a, panning_flags	;
 	mov	panning_flags, a	;
 	mov	update_dsp, #1		; set update dsp flag
 					;---------------------------------
-nopan:	mov	a, SPC_PORT3		; copy volume level and set bit
+nopan:	mov	a, SPC_PORT3		; copy volume level
 	mov	channel_volume-18h+x, a	;
 	jmp	NextCommand_R		;
 ;-------------------------------------------------------------------------
