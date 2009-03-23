@@ -417,6 +417,17 @@ CMD_COEF:
 ;-------------------------------------------------------------------------
 CMD_EDL:
 ;-------------------------------------------------------------------------
+	mov	a, SPC_PORT3		; set ESA to 256 - EDL * 8
+	asl	a			;
+	asl	a			;
+	asl	a			;
+	eor	a, #255			;
+	inc	a			;
+	bne	_l1			;
+	dec	a			;
+_l1:	mov	SPC_DSPA, #DSP_ESA	;
+	mov	SPC_DSPD, a		;
+					;---------------------------------
 	mov	a, SPC_PORT3		; copy value into EDL
 	mov	SPC_DSPA, #DSP_EDL	;
 	mov	SPC_DSPD, a		;
