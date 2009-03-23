@@ -1,0 +1,48 @@
+BUGLIST
+-------------
+
+
+-------------------------------------------
+006 MSG:VOL [11:54 AM 3/23/2009]	[RESOLVED]
+  reads from bits-10h+x rather than bits-18h+x
+
+005 MSG:PITCH, MSG:VOL [11:42 AM 3/23/2009] [RESOLVED]
+  both use wrong index into bits variable
+
+004 MSG:PAN [11:04 AM 3/23/2009]	[RESOLVED]
+  reads wrong 'bits' data
+
+003 UpdateDSP [10:41 AM 3/23/2009]	[RESOLVED]
+  does not decrement srcn variable before
+  writing it to DSP
+ 
+002 UpdateDSP [10:36 AM 3/23/2009]	[RESOLVED]
+  this function should skip operation if
+  the update flag is not set
+
+001 SlideVolumes [10:26 AM 3/23/2009]	[RESOLVED]
+  (may not happen on hardware)
+  switched around volume/rvolume values to
+  give rvolume a higher address so the
+  subtraction will not overflow
+
+000 MSG:COEF [9:57 AM 3/23/2009]	[RESOLVED]
+  adds II*1 to write offset
+  should be II*16
+
+WARNINGS
+-------------------------------------------
+
+  there may be more instances of bug 001,
+  they might cause malfunctions in emulation
+  but they should not affect actual hardware operation
+  [UPDATE: SPCTool displays the wrong address and value
+   in the disassembly window, but it does actually read 
+   from the right location]
+
+NOTICE
+---------------
+
+  cmd pitch & vol hacked with absolute addressing to bits
+  to fix operation on emulators
+  [UPDATE: SPCTool has accurate direct-page emulation]
