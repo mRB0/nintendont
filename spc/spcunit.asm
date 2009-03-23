@@ -179,57 +179,36 @@ FLG_ECEN	=20h
 ; zero-page memory
 ;*****************************************************************************************
 
-bits:
-	.block 8
-
-transfer_address:
-	.block 2
-next_sample:
-	.block 1
-comms_v:
-	.block 1
-	
-
-channel_rvolume:
-	.block 8	; (gain) (actual levels)
-channel_volume:
-	.block 8	; (gain) (target levels)
-channel_panning:
-	.block 8	; (vol)
-channel_ofs:
-	.block 8	; (sample offset)
-channel_srcn:
-	.block 8	; (srcn/keyon)
-channel_pitch_l:
-	.block 8	; (PL)
-channel_pitch_h:
-	.block 8	; (PH)
-
-kof_flags:
-	.block 1
-panning_flags:
-	.block 1
-pitch_flags:
-	.block 1
-update_dsp:
-	.block 1	; boolean: true=need dsp update
-
-m0:	.block 1	; scratch variables
-m1:	.block 1	;
-m2:	.block 1	;
-m3:	.block 1	;
+bits			=0	; 8 bytes	(index to bit conversion)
+transfer_address	=8	; 2 bytes	(address to write next sample)
+next_sample		=10	; 1 byte	(index of next sample)
+comms_v			=11	; 1 byte	(communication variable)
+channel_volume		=12	; 8 bytes	(gain) (target levels)
+channel_rvolume		=20	; 8 bytes	(gain) (actual levels)
+channel_panning		=28	; 8 bytes	(panning levels) (0..127)
+channel_ofs		=36	; 8 bytes	(sample offsets for keyon)
+channel_srcn		=44	; 8 bytes	(srcn+1/keyon)
+channel_pitch_l		=52	; 8 bytes	(PL)
+channel_pitch_h		=60	; 8 bytes	(PH)
+kof_flags		=68	; 1 byte	(keyoff flags)
+panning_flags		=69	; 1 byte	(update panning flags)
+pitch_flags		=70	; 1 byte	(update pitch flags)
+update_dsp		=71	; 1 byte	(update dsp boolean)
+m0			=72	; 1 byte	(scratch variable 1)
+m1			=73	; 1 byte	(scratch variable 2)
+m2			=74	; 1 byte	(scratch variable 3)
+m3			=75	; 1 byte	(scratch variable 4)
 
 ;*****************************************************************************************
 ; sample directory
 ;*****************************************************************************************
-.org	0200h
 
-SampleDirectory:
-	.block	64*4
+SampleDirectory		=0200h	; 256 bytes	(64-sample directory)
 
 ;*****************************************************************************************
 ; program (load @ 300h)
 ;*****************************************************************************************
+
 .org	0300h
 
 ;-------------------------------------------------------------------------
@@ -409,10 +388,12 @@ CMD_EVOL:
 ;-------------------------------------------------------------------------
 CMD_COEF:
 ;-------------------------------------------------------------------------
-	mov	SPC_DSPA, #DSP_C0	; copy value into dsp coefficient
+	mov	a, SPC_PORT2		; compute dsp address (DSP_C0 + p2*16)
+	xcn	a			;
 	clrc				;
-	adc	SPC_DSPA, SPC_PORT2	;
-	mov	SPC_DSPD, SPC_PORT3	;
+	adc	a, #DSP_C0		;
+	mov	SPC_DSPA, a		;---------------------------------
+	mov	SPC_DSPD, SPC_PORT3	; copy value into dsp coefficient
 	jmp	NextCommand_R		;
 ;-------------------------------------------------------------------------
 CMD_EDL:
@@ -488,7 +469,7 @@ CMD_PITCH:
 	mov	channel_pitch_l-10h+x, a;
 	mov	a, SPC_PORT3		;
 	mov	channel_pitch_h-10h+x, a;---------------------------------
-	mov	a, !bits-10h+y		; set pitch flag
+	mov	a, bits-10h+x		; set pitch flag
 	or	a, pitch_flags		;
 	mov	pitch_flags, a		;---------------------------------
 	mov	update_dsp, #1		; set update dsp flag
@@ -500,7 +481,7 @@ CMD_VOL:
 	mov	a, SPC_PORT2		;
 	bmi	nopan			;---------------------------------
 	mov	channel_panning-18h+x, a; copy pan and set flag
-	mov	a, !bits-10h+y		; 
+	mov	a, bits-18h+x		; 
 	or	a, panning_flags	;
 	mov	panning_flags, a	;
 	mov	update_dsp, #1		; set update dsp flag
@@ -524,10 +505,15 @@ CMD_KON:
 ;*************************************************************************
 UpdateDSP:
 ;*************************************************************************
-	
-	mov	x, #0
-	mov	SPC_DSPA, #00h
-	
+	cmp	update_dsp, #0		; skip update if flag is not set
+	bne	_update_dsp_check	;
+	ret				;
+_update_dsp_check:			;
+	mov	update_dsp, #0		;---------------------------------
+					; init variables
+	mov	x, #0			; x = channel counter
+	mov	SPC_DSPA, #00h		; DSPA = first voice
+					;
 ;-------------------------------------------------------------------------
 _update_loop:
 ;-------------------------------------------------------------------------
@@ -540,6 +526,7 @@ _update_loop:
 					;
 _no_offset:				;---------------------------------
 	or	SPC_DSPA, #04h		; set SRCN for voice
+	dec	y			;
  	mov	SPC_DSPD, y		;
 					;---------------------------------
 	mov	y, bits+x		; set KON bit for voice
@@ -561,7 +548,7 @@ _no_offset:				;---------------------------------
 	mov	channel_srcn+x, y	;
 _no_keyon:				;---------------------------------
 	lsr	panning_flags		; update panning if flag is set
-	bcs	_skip_pan_update	;
+	bcc	_skip_pan_update	;
 	mov	a, channel_panning+x	;
 	eor	a, #127			;
 	mov	SPC_DSPD, a		;
@@ -571,7 +558,7 @@ _no_keyon:				;---------------------------------
 	inc	SPC_DSPA		;
 _skip_pan_update:			;---------------------------------
 	lsr	pitch_flags		; update pitch if flag is set
-	bcs	_skip_pitch_update	;
+	bcc	_skip_pitch_update	;
 	mov	a, channel_pitch_l+x	;
 	or	SPC_DSPA, #02h		;
 	mov	SPC_DSPD, a		;
