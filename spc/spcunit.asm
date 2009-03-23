@@ -27,21 +27,21 @@
 ;
 ; LLLL = loop point
 ;-------------------------------------------------------------
-; EVOL	01	Set Echo Volume
+; MVOL	01	Set Main Volume
+;
+; >> id vv LL RR
+; << -- mm -- --
+;
+; LL = left level  (-128..127)
+; RR = right level (-128..127)
+;-------------------------------------------------------------
+; EVOL	02	Set Echo Volume
 ;
 ; >> id vv LL RR
 ; << -- mm -- --
 ;
 ; LL = left evol (-128..127)
 ; RR = right evol (-128..127)
-;-------------------------------------------------------------
-; COEF	02	Set Echo Coefficient
-;
-; >> id vv II CC
-; << -- mm -- --
-;
-; II = index
-; CC = coefficient (-128..127)
 ;-------------------------------------------------------------
 ; EDL	03	Set Echo Delay
 ;
@@ -51,39 +51,52 @@
 ; DD = echo delay (0..15)
 ; [WARNING: WILL HALT SYSTEM FOR DD*16 MS]
 ;-------------------------------------------------------------
-; ECEN	04	Set Echo Enable
+; EFB	04	Set Echo Feedback
+; 
+; >> id vv -- ff
+; << -- mm -- --
+;
+; ff = new echo feedback level (-128..127)
+;-------------------------------------------------------------
+; COEF	05	Set Echo Coefficient
+;
+; >> id vv II CC
+; << -- mm -- --
+;
+; II = index
+; CC = coefficient (-128..127)
+;-------------------------------------------------------------
+; EON	06	Voice Echo Enable
+;
+; >> id vv -- ee
+;
+; ee = echo enable bits (1 per voice)
+;-------------------------------------------------------------
+; ECEN	07	Set Echo Enable
 ;
 ; >> id vv -- EE
 ; << -- mm -- --
 ;
 ; EE = 01=enable echo, 00=disable echo
 ;-------------------------------------------------------------
-; MVOL	05	Set Main Volume
-;
-; >> id vv LL RR
-; << -- mm -- --
-;
-; LL = left level  (-128..127)
-; RR = right level (-128..127)
-;-------------------------------------------------------------
-; RET	06	End of messages (return to processing)
+; RET	08	End of messages (return to processing)
 ;
 ; >> id vv -- --
 ; << -- mm -- --
 ;-------------------------------------------------------------
-; RESET	07	Reset system
+; RESET	09	Reset system
 ;
 ; >> id vv -- --
 ; << -- mm -- --
 ;-------------------------------------------------------------
-; KOF	08	Stop voices (KeyOFF)
+; KOF	0A	Stop voices (KeyOFF)
 ;
 ; >> id vv -- aa
 ; << -- -- mm --
 ;
 ; aa = voices to stop (voice/bit)
 ;-------------------------------------------------------------
-; OFS	09	Sample Offset
+; OFS	0B	Sample Offset
 ;
 ; >> id vv ii oo
 ;
@@ -291,17 +304,17 @@ NextCommand:
 CommandTable:
 ;-------------------------------------------------------------------------
 	.word	CMD_LOAD		; 00
-	.word	CMD_EVOL		; 01
-	.word	CMD_COEF		; 02
+	.word	CMD_MVOL		; 01
+	.word	CMD_EVOL		; 02
 	.word	CMD_EDL			; 03
-	.word	CMD_ECEN		; 04
-	.word	CMD_MVOL		; 05
-	.word	CMD_RET			; 06
-	.word	CMD_RESET		; 07
-	.word	CMD_KOF			; 08
-	.word	CMD_OFS			; 09
-	.word	0			; 0A
-	.word	0			; 0B
+	.word	CMD_EFB			; 04
+	.word	CMD_COEF		; 05
+	.word	CMD_EON			; 06
+	.word	CMD_ECEN		; 07
+	.word	CMD_RET			; 08
+	.word	CMD_RESET		; 09
+	.word	CMD_KOF			; 0A
+	.word	CMD_OFS			; 0B
 	.word	0			; 0C
 	.word	0			; 0D
 	.word	0			; 0E
@@ -385,22 +398,20 @@ inc_address:
 ;-------------------------------------------------------------------------
 	
 ;-------------------------------------------------------------------------
+CMD_MVOL:
+;-------------------------------------------------------------------------
+	mov	SPC_DSPA, #DSP_MVOL	; copy volume 
+	mov	SPC_DSPD, SPC_PORT2	;
+	mov	SPC_DSPA, #DSP_MVOLR	;
+	mov	SPC_DSPD, SPC_PORT3	;
+	jmp	NextCommand_R		;
+;-------------------------------------------------------------------------
 CMD_EVOL:
 ;-------------------------------------------------------------------------
 	mov	SPC_DSPA, #DSP_EVOL	; copy volume levels into dsp registers
 	mov	SPC_DSPD, SPC_PORT2	;
 	mov	SPC_DSPA, #DSP_EVOLR	;
 	mov	SPC_DSPD, SPC_PORT3	;
-	jmp	NextCommand_R		;
-;-------------------------------------------------------------------------
-CMD_COEF:
-;-------------------------------------------------------------------------
-	mov	a, SPC_PORT2		; compute dsp address (DSP_C0 + p2*16)
-	xcn	a			;
-	clrc				;
-	adc	a, #DSP_C0		;
-	mov	SPC_DSPA, a		;---------------------------------
-	mov	SPC_DSPD, SPC_PORT3	; copy value into dsp coefficient
 	jmp	NextCommand_R		;
 ;-------------------------------------------------------------------------
 CMD_EDL:
@@ -430,6 +441,30 @@ _delay_16clks:				;
 	bne	_delay_16clks		; <4
 	jmp	NextCommand_R		;
 ;-------------------------------------------------------------------------
+CMD_EFB:
+;-------------------------------------------------------------------------
+	mov	y, SPC_PORT3		; copy new EFB value to DSP
+	mov	a, #DSP_EFB		;
+	movw	SPC_DSP, ya		;
+	jmp	NextCommand_R		;
+;-------------------------------------------------------------------------
+CMD_COEF:
+;-------------------------------------------------------------------------
+	mov	a, SPC_PORT2		; compute dsp address (DSP_C0 + p2*16)
+	xcn	a			;
+	clrc				;
+	adc	a, #DSP_C0		;
+	mov	SPC_DSPA, a		;---------------------------------
+	mov	SPC_DSPD, SPC_PORT3	; copy value into dsp coefficient
+	jmp	NextCommand_R		;
+;-------------------------------------------------------------------------
+CMD_EON:
+;-------------------------------------------------------------------------
+	mov	y, SPC_PORT3		; copy new EON value to DSP
+	mov	a, #DSP_EON		;
+	movw	SPC_DSP, ya		;
+	jmp	NextCommand_R		;
+;-------------------------------------------------------------------------
 CMD_ECEN:
 ;-------------------------------------------------------------------------
 	mov	SPC_DSPA, #DSP_FLG	; FLG = port3 ? 0 : FLG_ECEN
@@ -440,14 +475,6 @@ _enable_echo:				;
 	jmp	NextCommand_R		;
 _disable_echo:				;
 	mov	SPC_DSPD, #FLG_ECEN	;
-	jmp	NextCommand_R		;
-;-------------------------------------------------------------------------
-CMD_MVOL:
-;-------------------------------------------------------------------------
-	mov	SPC_DSPA, #DSP_MVOL	; copy volume 
-	mov	SPC_DSPD, SPC_PORT2	;
-	mov	SPC_DSPA, #DSP_MVOLR	;
-	mov	SPC_DSPD, SPC_PORT3	;
 	jmp	NextCommand_R		;
 ;-------------------------------------------------------------------------
 CMD_RET:
