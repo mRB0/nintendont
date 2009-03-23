@@ -563,10 +563,30 @@ _update_loop:
 	mov	a, channel_ofs+x	; test sample offset
 	beq	_no_offset		; (skip if 0)
 					;---------------------------------
-					; TODO: sample offset
-					;
+	mov	y, #0			; reset channel offset
+	mov	channel_ofs+y, #0	;
+					;---------------------------------
+	mov	y, #144			; m0,m1 = offset * 144 (256/16*9 samples)
+	mul	ya			;
+	movw	m0, ya			;---------------------------------
+	mov	a, channel_srcn+x	; y = sample*4
+	asl	a			;
+	asl	a			;
+	mov	y, a			;---------------------------------
+	mov	a, !SampleDirectory+1+y	; m2 = original address hi-byte
+	mov	m2, a			;---------------------------------
+	mov	a, !SampleDirectory+y	; push original address lo-byte
+	push	a			;
+					;---------------------------------
+	adc	a, m0			; add m0, m1 to sample address
+	mov	!SampleDirectory+y, a	;
+	mov	a, m2			;
+	adc	a, m1			;
+	mov	!SampleDirectory+1+y, a	;---------------------------------
+	push	y			; save offset for restoring
 _no_offset:				;---------------------------------
-	or	SPC_DSPA, #04h		; set SRCN for voice
+	mov	y, channel_srcn+x	; set SRCN for voice
+	or	SPC_DSPA, #04h		; 
 	dec	y			;
  	mov	SPC_DSPD, y		;
 					;---------------------------------
@@ -606,18 +626,25 @@ _skip_pan_update:			;---------------------------------
 	mov	a, channel_pitch_h+x	;
 	inc	SPC_DSPA		;
 	mov	SPC_DSPD, a		;
-_skip_pitch_update:			;---------------------------------
+_skip_pitch_update:			;
+					;---------------------------------
 	mov	a, channel_ofs+x	; test sample offset
 	beq	_no_offset2		; (skip if 0)
 					;---------------------------------
-					; TODO: restore sample address
+	pop	y			; restore sample address
+	pop	a			;
+	mov	!SampleDirectory+y, a	;
+	mov	a, m2			;
+	mov	!SampleDirectory+1+y, a	;
 					;
 _no_offset2:				;---------------------------------
-	or	SPC_DSPA, #15		; increment iterator
-	inc	SPC_DSPA		;
-	inc	x			;---------------------------------
-	cmp	x, #8			; loop for 8 channels
-	bne	_update_loop		;
+	inc	x			; increment iterator
+	or	SPC_DSPA, #15		;
+	inc	SPC_DSPA		; 
+	bmi	_exit_update		; break after 8 channels
+	jmp	_update_loop		;
+;-------------------------------------------------------------------------
+_exit_update:
 ;-------------------------------------------------------------------------
 	ret
 ;-------------------------------------------------------------------------
