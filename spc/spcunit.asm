@@ -76,12 +76,19 @@
 ; >> id vv -- --
 ; << -- mm -- --
 ;-------------------------------------------------------------
-; KOF	08	Stop voices
+; KOF	08	Stop voices (KeyOFF)
 ;
 ; >> id vv -- aa
 ; << -- -- mm --
 ;
 ; aa = voices to stop (voice/bit)
+;-------------------------------------------------------------
+; OFS	09	Sample Offset
+;
+; >> id vv ii oo
+;
+; ii = voice index
+; oo = sample offset (0..255) (*256 sample offset)
 ;-------------------------------------------------------------
 ; PITCH	1x	Set Voice Pitch
 ; 
@@ -100,12 +107,12 @@
 ; pp = panning level (0..127), 128=dont use
 ; ll = volume level (0..127)
 ;-------------------------------------------------------------
-; KON	2x	Start voice
+; KON	2x	Start voice (KeyON)
 ;
-; >> 2x vv oo ss
+; >> 2x vv VV ss
 ; << -- mm -- --
 ;
-; oo = sample offset
+; VV = volume level
 ; ss = sample index
 ;-------------------------------------------------------------
 
@@ -292,7 +299,7 @@ CommandTable:
 	.word	CMD_RET			; 06
 	.word	CMD_RESET		; 07
 	.word	CMD_KOF			; 08
-	.word	0			; 09
+	.word	CMD_OFS			; 09
 	.word	0			; 0A
 	.word	0			; 0B
 	.word	0			; 0C
@@ -462,6 +469,13 @@ CMD_KOF:
 	or	kof_flags, SPC_PORT3	; add kof flags
 	jmp	NextCommand_R		;
 ;-------------------------------------------------------------------------
+CMD_OFS:
+;-------------------------------------------------------------------------
+	mov	x, SPC_PORT2		; set sample offset for voice
+	mov	a, SPC_PORT3		; (should be followed by KeyON)
+	mov	channel_ofs+x, a	;
+	ret				;
+;-------------------------------------------------------------------------
 CMD_PITCH:
 ;-------------------------------------------------------------------------
 	mov	x, SPC_PORT0		; copy pitch values
@@ -496,8 +510,8 @@ CMD_KON:
 	mov	a, SPC_PORT3		;
 	inc	a			; (+1)
 	mov	channel_srcn-20h+x, a	;---------------------------------
-	mov	a, SPC_PORT2		; copy starting offset
-	mov	channel_ofs-20h+x, a	;---------------------------------
+	mov	a, SPC_PORT2		; copy volume
+	mov	channel_volume-20h+x, a	;---------------------------------
 	mov	update_dsp, #1		; set update dsp flag
 	jmp	NextCommand_R		;
 ;-------------------------------------------------------------------------

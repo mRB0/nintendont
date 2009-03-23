@@ -20,8 +20,12 @@ spcunit_bin:
 spcunit_end:
 
 
-test_upload:
-	.byte	$0A, $0B, $0C, $0D
+test_sample:
+;.incbin "data\piano.brr"
+.incbin "data\choir.brr"
+test_sample_end:
+
+.equ	SAMPLELOOP, 1287
 
 .ends
 
@@ -77,6 +81,7 @@ Main:
 				;--------------------------------------
 				; Load driver
 	jsl	BootSPC		;
+;	jsl	UploadTest	;
 				;--------------------------------------
 	lda	#%10100001	; enable vblank irq, enable joypad
 	sta	REG_NMITIMEN	;
@@ -119,11 +124,13 @@ _mainloop:
 	lda joypadc
 	and #%10000000
 	beq +++++
-	
+
 	;------------------
-	; Insert Code Here
+	; Insert Code Here:
 	;------------------
 	
+	jsl	UploadTest
+	jsl	DoRet
 +++++
 	;---------------------------------------------------------
 	; Input B
@@ -131,10 +138,12 @@ _mainloop:
 	lda joypadc+1
 	and #%10000000
 	beq +++++
+
+	;------------------
+	; Insert Code Here:
+	;------------------
 	
-	;------------------
-	; Insert Code Here
-	;------------------
+	jsl	PlayTest
 	
 +++++	;---------------------------------------------------------
 	; Input X
@@ -144,8 +153,22 @@ _mainloop:
 	beq +++++
 	
 	;------------------
-	; Insert Code Here
+	; Insert Code Here:
 	;------------------
+	
+	lda	#$19
+	sta	REG_APUI00
+	lda	#$80
+	sta	REG_APUI02
+	lda	#$10
+	sta	REG_APUI03
+	lda	sf_v
+	eor	#128
+	sta	sf_v
+	sta	REG_APUI01
+-	cmp	REG_APUI01	
+	bne	-
+	jsl	DoRet
 	
 +++++	;---------------------------------------------------------
 	; Input Y
@@ -158,6 +181,20 @@ _mainloop:
 	;------------------
 	; Insert Code Here
 	;------------------
+
+	lda	#$19
+	sta	REG_APUI00
+	lda	#$80
+	sta	REG_APUI02
+	lda	#$7F
+	sta	REG_APUI03
+	lda	sf_v
+	eor	#128
+	sta	sf_v
+	sta	REG_APUI01
+-	cmp	REG_APUI01	
+	bne	-
+	jsl	DoRet
 	
 +++++	;---------------------------------------------------------
 	
@@ -165,9 +202,9 @@ _mainloop:
 	stx joypadc		;
 	wai			; wait for vblank
 	jmp _mainloop		; loop
-
-
-
+	
+	
+	
 
 ;###############################################################################
 ;...............................................................................
@@ -249,14 +286,116 @@ sb_start:
 ;----------------------------------------------------------------------	
 
 ;----------------------------------------------------------------------
-UploadData:
+UploadTest:
 ;----------------------------------------------------------------------
-	
+
+	lda	#00		; set message id, zero data, and dispatch
+	sta	REG_APUI00	;
+	lda	#SAMPLELOOP & $FF
+	sta	REG_APUI02	;
+	lda	#SAMPLELOOP >> 8
+	sta	REG_APUI03	;
+	lda	sf_v		;
+	eor	#128		;
+	ora	#1		;
+	sta	sf_v		;
+	sta	REG_APUI01	;
+				;--------------------------------------
+-	cmp	REG_APUI01	; wait for spc
+	bne	-		;
+				;--------------------------------------
+	ldx	#0		; reset iterator
+
+;----------------------------------------------------------------------
+_next_word:
+;----------------------------------------------------------------------
+	lda.w	test_sample,x	; copy 2 bytes
+	inx			;
+	sta	REG_APUI02	;
+	lda.w	test_sample,x	;
+	inx			;
+	sta	REG_APUI03	;
+				;--------------------------------------
+	cpx	#test_sample_end-test_sample	; catch end of data
+	bcs	_end_of_transfer		;
+					;------------------------------
+	lda	sf_v			; dispatch packet
+	eor	#128			;
+	sta	sf_v			;
+	sta	REG_APUI01		;------------------------------
+-	cmp	REG_APUI01		; wait for spc
+	bne	-			;
+	bra	_next_word		; copy next word
+;----------------------------------------------------------------------
+_end_of_transfer:
+;----------------------------------------------------------------------
+	stz	REG_APUI01	; terminate transfer
+	stz	sf_v		;
+	lda	#0		;--------------------------------------
+-	cmp	REG_APUI01	; wait for spc
+	bne	-		;
+	rtl			;
+;----------------------------------------------------------------------
+
+;----------------------------------------------------------------------
+DoRet:
+;----------------------------------------------------------------------
+	lda	#$06		; set message id and dispatch
+	sta	REG_APUI00	;
+	lda	sf_v		;
+	eor	#128		;
+	sta	sf_v		;
+	sta	REG_APUI01	;--------------------------------------
+-	cmp	REG_APUI01	; wait for spc
+	bne	-		;
+	rtl			;
+;----------------------------------------------------------------------
+
+;----------------------------------------------------------------------
+PlayTest:
+;----------------------------------------------------------------------
+	lda	#$11		; set frequency
+	sta	REG_APUI00	;
+	lda	#$11		;
+	sta	REG_APUI02	;
+	sta	REG_APUI03	;
+	lda	sf_v		;
+	eor	#128		;
+	sta	REG_APUI01	;
+	sta	sf_v		;
+-	cmp	REG_APUI01	;
+	bne	-		;--------------------------------------
+	lda	#$19		; set volume&pan
+	sta	REG_APUI00	;
+	lda	#$60		;
+	sta	REG_APUI02	;
+	lda	#$7F		;
+	sta	REG_APUI03	;
+	lda	sf_v		;
+	eor	#128		;
+	sta	REG_APUI01	;
+	sta	sf_v		;
+-	cmp	REG_APUI01	;
+	bne	-		;--------------------------------------
+	lda	#$21		; keyon (volume:7f, sample:0)
+	sta	REG_APUI00	;
+	lda	#$7F
+	sta	REG_APUI02	;
+	stz	REG_APUI03	;
+	lda	sf_v		;
+	eor	#128		;
+	sta	REG_APUI01	;
+	sta	sf_v		;
+-	cmp	REG_APUI01	;
+	bne	-		;
+
+	jsl	DoRet
+	rtl
 
 ;###############################################################################
 ;...............................................................................
 ;-------------------------------------------------------------------------------
-;###############################################################################	
+;###############################################################################
 
 
 

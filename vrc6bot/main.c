@@ -27,5 +27,5 @@ void system_init(void)
 void main(void)
 {
 	system_init();
-	
+	while(1);
 }
