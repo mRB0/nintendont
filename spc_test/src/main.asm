@@ -340,7 +340,7 @@ _end_of_transfer:
 ;----------------------------------------------------------------------
 DoRet:
 ;----------------------------------------------------------------------
-	lda	#$06		; set message id and dispatch
+	lda	#$08		; set message id and dispatch
 	sta	REG_APUI00	;
 	lda	sf_v		;
 	eor	#128		;
