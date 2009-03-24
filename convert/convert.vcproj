@@ -41,7 +41,8 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE"
+				AdditionalIncludeDirectories="include"
+				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;TINYXML_USE_STL"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="3"
@@ -171,7 +172,35 @@
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
 			<File
-				RelativePath=".\convert.cpp"
+				RelativePath=".\source\conversion.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\source\convert.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\source\inputdata.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\source\io.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\source\tinystr.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\source\tinyxml.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\source\tinyxmlerror.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\source\tinyxmlparser.cpp"
 				>
 			</File>
 		</Filter>
@@ -180,6 +209,30 @@
 			Filter="h;hpp;hxx;hm;inl;inc;xsd"
 			UniqueIdentifier="{93995380-89BD-4b04-88EB-625FBE52EBFB}"
 			>
+			<File
+				RelativePath=".\include\basetypes.h"
+				>
+			</File>
+			<File
+				RelativePath=".\include\conversion.h"
+				>
+			</File>
+			<File
+				RelativePath=".\include\inputdata.h"
+				>
+			</File>
+			<File
+				RelativePath=".\include\io.h"
+				>
+			</File>
+			<File
+				RelativePath=".\tinystr.h"
+				>
+			</File>
+			<File
+				RelativePath=".\tinyxml.h"
+				>
+			</File>
 		</Filter>
 		<Filter
 			Name="Resource Files"
