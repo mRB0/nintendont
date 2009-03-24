@@ -1,0 +1,42 @@
+<?xml version="1.0" ?>
+
+<!--
+
+  module parameters
+
+  file: filename of module
+  edl: echo delay setting 0..15 = 0..240 milliseconds
+       caution: reserves 2K of SPC memory per 16ms of delay
+  efb: echo feedback (-100..100) for -100% to 100% of echo feedback
+  evl: echo volume LEFT (-100..100) for -100% to 100% of echo volume
+  evr: echo volume RIGHT
+  eon: echo enable per SPC channel, 
+       specify as bit string ie "10100011" for echo on voices 1, 3, 7, and 8
+  e0..7: echo FIR coefficient
+       by default e0 is 127 and the rest are zero
+
+  sample options
+  
+  index: specify sample index, 1 based
+  f="0": force filter 0 (DURING BRR COMPRESSION) for entire sample (4-bit mode)
+  lp="0": force filter 0 for loop start block
+-->
+
+<soundbank>
+
+	<module 
+		file="source.it"
+		edl="5"
+		efb="60"
+		evl="40"
+		evr="-40"
+		eon="11100000"
+		e0="60"
+		e1="40"
+		e2="20">
+	
+		<sample index="1" f="0"/>
+		
+	</module>
+
+</soundbank>
