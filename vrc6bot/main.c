@@ -38,7 +38,8 @@ void system_init(void)
 	TRIS_M2 = 0; // output
 }
 
-void tester(){
+void tester(void)
+{
 	int a = 5;
 	tester();
 }
@@ -125,6 +126,7 @@ void main(void)
 		set_addr(0x9000);
 		LATD = 0x0f | (duty << 4);
 		LATEbits.LATE2 = 0;
+		Delay1KTCYx(1);
 		LATEbits.LATE2 = 1;
 		
 		//duty = (duty + 4) % 0x8;
@@ -132,6 +134,7 @@ void main(void)
 		set_addr(0xa000);
 		LATD = 0x0f | (duty << 4);
 		LATEbits.LATE2 = 0;
+		Delay1KTCYx(1);
 		LATEbits.LATE2 = 1;
 		
 		//duty = (duty + 4) % 0x8;
@@ -141,25 +144,25 @@ void main(void)
 		set_addr(0xa001);
 		LATD = 0x72;
 		LATEbits.LATE2 = 0;
-		//Delay1KTCYx(1);
+		Delay1KTCYx(1);
 		LATEbits.LATE2 = 1;
 		
 		set_addr(0xa002);
 		LATD = 0x82;
 		LATEbits.LATE2 = 0;
-		//Delay1KTCYx(1);
+		Delay1KTCYx(1);
 		LATEbits.LATE2 = 1;
 		
 		set_addr(0x9001);
 		LATD = 0xd6;
 		LATEbits.LATE2 = 0;
-		//Delay1KTCYx(1);
+		Delay1KTCYx(1);
 		LATEbits.LATE2 = 1;
 	
 		set_addr(0x9002);
 		LATD = 0x81;
 		LATEbits.LATE2 = 0;
-		//Delay1KTCYx(1);
+		Delay1KTCYx(1);
 		LATEbits.LATE2 = 1;
 		
 		Delay10KTCYx(50);
@@ -167,25 +170,25 @@ void main(void)
 		set_addr(0xa001);
 		LATD = 0xe7;
 		LATEbits.LATE2 = 0;
-		//Delay1KTCYx(1);
+		Delay1KTCYx(1);
 		LATEbits.LATE2 = 1;
 	
 		set_addr(0xa002);
 		LATD = 0x82;
 		LATEbits.LATE2 = 0;
-		//Delay1KTCYx(1);
+		Delay1KTCYx(1);
 		LATEbits.LATE2 = 1;
 		
 		set_addr(0x9001);
 		LATD = 0x72;
 		LATEbits.LATE2 = 0;
-		//Delay1KTCYx(1);
+		Delay1KTCYx(1);
 		LATEbits.LATE2 = 1;
 	
 		set_addr(0x9002);
 		LATD = 0x82;
 		LATEbits.LATE2 = 0;
-		//Delay1KTCYx(1);
+		Delay1KTCYx(1);
 		LATEbits.LATE2 = 1;
 		
 		Delay10KTCYx(50);
@@ -193,25 +196,25 @@ void main(void)
 		set_addr(0xa001);
 		LATD = 0xa7;
 		LATEbits.LATE2 = 0;
-		//Delay1KTCYx(1);
+		Delay1KTCYx(1);
 		LATEbits.LATE2 = 1;
 	
 		set_addr(0xa002);
 		LATD = 0x83;
 		LATEbits.LATE2 = 0;
-		//Delay1KTCYx(1);
+		Delay1KTCYx(1);
 		LATEbits.LATE2 = 1;
 
 		set_addr(0x9001);
 		LATD = 0xe7;
 		LATEbits.LATE2 = 0;
-		//Delay1KTCYx(1);
+		Delay1KTCYx(1);
 		LATEbits.LATE2 = 1;
 	
 		set_addr(0x9002);
 		LATD = 0x82;
 		LATEbits.LATE2 = 0;
-		//Delay1KTCYx(1);
+		Delay1KTCYx(1);
 		LATEbits.LATE2 = 1;
 		
 		LATEbits.LATE1 = 1;
