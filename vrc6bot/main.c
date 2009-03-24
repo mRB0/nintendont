@@ -23,9 +23,18 @@ void system_init(void)
 	ADCON1 = 0x0f; // digital I/O
 }
 
+void tester(){
+	int a = 5;
+	tester();
+}
 
 void main(void)
 {
+	uint8_t test = 0xAABB;
+	uint16_t test2 = test * 127;
+
+	while(1) {}
 	system_init();
+	
 	while(1);
 }
