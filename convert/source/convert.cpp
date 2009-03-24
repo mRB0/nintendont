@@ -3,8 +3,10 @@
  * by mukunda
  ******************************************************************************/
  
-#include <string.h>
+#include <string>
 #include <stdio.h>
+#include "tinyxml.h"
+#include "inputdata.h"
 
 enum {
 	CHTAB	=0x09
@@ -12,17 +14,22 @@ enum {
 
 const char USAGE[] = {
 
-"\n\n\nUsage: convert [OPTIONS] input.xml output\n"
+"\n\n\nUsage: convert input.xml\n"
 "\n"
 "see example.xml\n"
-"output will be output.ibank (internal bank) and output.ebank (external bank)\n\n\n"
 
 };
 
 int main( int argc, char *argv[] ) {
 	
-	printf( USAGE );
+	if( argc < 3 )
+		printf( USAGE );
 	
+	TiXmlDocument doc( argv[1] );
+	doc.LoadFile();
 	
+	ConversionInput::OperationData data( &doc );
+	
+		
 	return 0;
 }
