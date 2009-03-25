@@ -37,7 +37,7 @@ void Player_Reset() {
  *************************************************************************/
 void Player_ChangePosition( uint8_t NewPosition ) {
 	Player.Position = NewPosition;
-
+	
 }
 
 /*************************************************************************
@@ -77,8 +77,8 @@ void Player_SetTempo( uint8_t Tempo ) {
 void Player_Start( uint8_t ModuleIndex ) {
 	Player.Active = 1;
 	
-	Player_SetTempo( ReadExternalByte( Player.eBank + MH_InitialTempo ) );
-	Player.Speed = ReadExternalByte( Player.eBank + MH_InitialSpeed );
+//	Player_SetTempo( ReadExternalByte( Player.eBank + MH_InitialTempo ) );
+//	Player.Speed = ReadExternalByte( Player.eBank + MH_InitialSpeed );
 }
 
 /*************************************************************************

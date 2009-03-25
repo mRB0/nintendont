@@ -41,8 +41,8 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="include"
-				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE"
+				AdditionalIncludeDirectories="&quot;include&quot;,&quot;rtaudio\include&quot;,&quot;rtaudio&quot;"
+				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE;__WINDOWS_DS__"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="3"
@@ -61,6 +61,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
+				AdditionalDependencies="dsound.lib"
 				LinkIncremental="2"
 				GenerateDebugInformation="true"
 				SubSystem="1"
@@ -172,11 +173,15 @@
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
 			<File
-				RelativePath=".\source\main.c"
+				RelativePath=".\source\main.cpp"
 				>
 			</File>
 			<File
 				RelativePath=".\source\player.c"
+				>
+			</File>
+			<File
+				RelativePath=".\rtaudio\RtAudio.cpp"
 				>
 			</File>
 		</Filter>
@@ -187,6 +192,10 @@
 			>
 			<File
 				RelativePath=".\include\player.h"
+				>
+			</File>
+			<File
+				RelativePath=".\include\stdint.h"
 				>
 			</File>
 		</Filter>
