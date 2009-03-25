@@ -2,7 +2,7 @@
 
 namespace ConversionInput {
 
-	template<typename T> void deletePtrVector( std::vector<T*> &vecs ) {
+	template<typename T> static void deletePtrVector( std::vector<T*> &vecs ) {
 		
 		for(typename std::vector<T*>::iterator iter = vecs.begin(), ending = vecs.end();
 			iter != ending; 
