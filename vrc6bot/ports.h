@@ -20,7 +20,7 @@
 #define LAT_DATA	LATD
 #define PORT_DATA	PORTD
 
-#define TRIS_INPUT (0x00)
-#define TRIS_OUTPUT (0xff)
+#define TRIS_INPUT (0xff)
+#define TRIS_OUTPUT (0x00)
 
 #endif
