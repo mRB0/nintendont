@@ -54,12 +54,15 @@ namespace VRC6Bot {
 		u16 Loop;
 		u8	*BRRdata;
 
+		double TuningFactor;
+
 	public:
 
 		Sample( const ITLoader::Sample &, const ConversionInput::SampleData * );
 		~Sample();
 
 		bool Compare( const Sample& ) const;
+		void Export( IO::File & ) const;
 	};
 	
 	class SampleHeader { // IBANK
@@ -145,8 +148,8 @@ namespace VRC6Bot {
 
 	class Bank {
 
-		void ExportI( const char *filename );
-		void ExportE( const char *filename );
+		void ExportI( const char *filename, u16 *ModulePointers );
+		void ExportE( const char *filename, u16 *IModulePointers );
 		
 	public:
 

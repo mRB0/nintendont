@@ -34,6 +34,8 @@ namespace IO {
 		void Write8( u8 );
 		void Write16( u16 );
 		void Write32( u32 );
+
+		void WriteAlign( u32 boundary );
 		
 		void Skip( s32 amount );
 		u32 Tell();

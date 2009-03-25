@@ -104,7 +104,7 @@ namespace ITLoader {
 		u8	DefaultPan;
 		u8	RandomVolume;
 		u8	RandomPanning;
-		u8	TrackerVersion;
+		u16	TrackerVersion;
 		u8	NumberOfSamples;
 		u8	InitialFilterCutoff;
 		u8	InitialFilterResonance;
