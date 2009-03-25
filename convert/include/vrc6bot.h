@@ -24,6 +24,9 @@ namespace VRC6Bot {
 	public:
 		InstrumentEnvelope( const ITLoader::Envelope & );
 		~InstrumentEnvelope();
+
+		void ExportAttributes( IO::File &file );
+		void ExportNodes( IO::File &file );
 	};
 	
 	class Instrument { // IBANK
@@ -40,6 +43,8 @@ namespace VRC6Bot {
 	public:
 		Instrument( const ITLoader::Instrument &source );
 		~Instrument();
+
+		void Export( IO::File &file );
 	};
 
 	class Sample { // EBANK
@@ -66,9 +71,11 @@ namespace VRC6Bot {
 		u8	RelativeNote;
 		u8	Finetune;
 		u16	SampleIndex;	// ignored for vrc6 samples
-
+		
 	public:
 		SampleHeader( const ITLoader::Sample &, int, const Sample * );
+		
+		void Export( IO::File &file );
 	};
 
 	class Pattern { // EBANK
@@ -81,6 +88,8 @@ namespace VRC6Bot {
 	public:
 		Pattern( ITLoader::Pattern & );
 		~Pattern();
+
+		void Export( IO::File &file );
 	};
 	
 	class IModule { // IBANK
@@ -93,9 +102,6 @@ namespace VRC6Bot {
 		SampleHeader **samples;
 		Instrument **instruments;
 
-		// sample pointers..
-		// instrument pointers..
-
 	public:
 		IModule( const ITLoader::Module &source, 
 				const ConversionInput::ModuleData &cinput, 
@@ -103,6 +109,10 @@ namespace VRC6Bot {
 				const std::vector<Sample*> &sample_tab );
 
 		~IModule();
+
+		void Export( IO::File &file );
+
+		int GetSequenceLength() const;
 	};
 	
 	class EModule { // EBANK
@@ -129,13 +139,19 @@ namespace VRC6Bot {
 	public:
 		EModule( const ITLoader::Module &source, const ConversionInput::ModuleData & );
 		~EModule();
+
+		void Export( IO::File &file, int SequenceLength );
 	};
 
 	class Bank {
+
+		void ExportI( const char *filename );
+		void ExportE( const char *filename );
 		
 	public:
 
 		Bank( const ITLoader::Bank &, const ConversionInput::SoundbankData & );
+		
 		void Export( const char *ibank, const char *ebank );
 
 		void AddModule( const ITLoader::Module &, const ConversionInput::ModuleData & );

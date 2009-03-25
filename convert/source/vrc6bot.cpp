@@ -100,12 +100,42 @@ namespace VRC6Bot {
 		delete[] Patterns;
 	}
 
+	void EModule::Export( IO::File &file, int SequenceLength ) {
+		file.Write8( InitialVolume );
+		file.Write8( InitialTempo );
+		file.Write8( InitialSpeed );
+		
+		for( int i = 0; i < 11; i++ )
+			file.Write8( InitialChannelVolume[i] );
+
+		for( int i = 0; i < 11; i++ )
+			file.Write8( InitialChannelPanning[i] );
+
+		file.Write8( EchoVolumeLeft );
+		file.Write8( EchoVolumeRight );
+		file.Write8( EchoDelay );
+		file.Write8( EchoFeedback );
+		
+		for( int i = 0; i < 8; i++ )
+			file.Write8( EchoFIR[i] );
+
+		file.Write8( EchoEnableBits );
+		file.Write8( NumberOfPatterns );
+
+		for( int i = 0; i < SequenceLength; i++ )
+			file.Write8( Sequence[i] );
+
+		for( int i = 0; i < NumberOfPatterns; i++ ) {
+			Patterns[i]->Export( file );
+		}
+	}
+
 	/**********************************************************************************************
 	 *
 	 * Pattern
 	 *
 	 **********************************************************************************************/
-
+	
 	Pattern::Pattern( ITLoader::Pattern &source ) {
 		Rows = (u8)(source.Rows-1);
 		DataLength = source.DataLength;
@@ -120,6 +150,20 @@ namespace VRC6Bot {
 			delete[] Data;
 	}
 	
+	void Pattern::Export( IO::File &file ) {
+		file.Write16( DataLength );
+		file.Write8( Rows );
+		file.Write8( 0 );
+		for( int i = 0; i < DataLength; i++ )
+			file.Write8( Data[ i ] );
+	}
+	
+	/**********************************************************************************************
+	 *
+	 * Sample
+	 *
+	 **********************************************************************************************/
+
 	bool Sample::Compare( const Sample &test ) const {
 		if( DataLength != test.DataLength )
 			return false;
@@ -171,6 +215,47 @@ namespace VRC6Bot {
 		delete[] instruments;
 	}
 
+	void IModule::Export( IO::File &file ) {
+
+		u32 Origin = file.Tell();
+		file.Write16( SampleCount );
+		file.Write16( InstrumentCount );
+		file.Write8( SequenceLength );
+
+		u32 Tables = file.Tell();
+		
+		file.Skip( 2 * SampleCount );
+		file.Skip( 2 * InstrumentCount );
+
+		u16 InstrumentPointers[256];
+		u16 SamplePointers[256];
+		
+		for( int i = 0; i < InstrumentCount; i++ ) {
+			InstrumentPointers[i] = file.Tell() - Origin;
+			instruments[i]->Export( file );
+		}
+
+		for( int i = 0; i < SampleCount; i++ ) {
+			SamplePointers[i] = file.Tell() - Origin;
+			samples[i]->Export( file );
+		}
+
+		u32 End = file.Tell();
+		file.Seek( Tables );
+
+		for( int i = 0; i < InstrumentCount; i++ )
+			file.Write16( InstrumentPointers[i] );
+		
+		for( int i = 0; i < SampleCount; i++ )
+			file.Write16( SamplePointers[i] );
+
+		file.Seek( End );
+	}
+
+	int IModule::GetSequenceLength() const {
+		return SequenceLength;
+	}
+
 	/**********************************************************************************************
 	 *
 	 * SampleHeader
@@ -180,11 +265,20 @@ namespace VRC6Bot {
 	SampleHeader::SampleHeader( const ITLoader::Sample &source, int sample_index, const Sample *ex ) {
 		DefaultVolume = source.DefaultVolume;
 		GlobalVolume = source.GlobalVolume;
-		SetPan = source.DefaultPanning;
+		SetPan = source.DefaultPanning ^ 128;
 		
 		// TODO:relnote, finetune
 
 		SampleIndex = sample_index;
+	}
+
+	void SampleHeader::Export( IO::File &file ) {
+		file.Write8( DefaultVolume );
+		file.Write8( GlobalVolume );
+		file.Write8( SetPan );
+		file.Write8( RelativeNote );
+		file.Write8( Finetune );
+		file.Write16( SampleIndex );
 	}
 
 	/**********************************************************************************************
@@ -206,6 +300,18 @@ namespace VRC6Bot {
 	Instrument::~Instrument() {
 		delete venv;
 		delete penv;
+	}
+
+	void Instrument::Export( IO::File &file ) {
+		file.Write16( Fadeout );
+		file.Write8( SampleIndex );
+		file.Write8( 0 );
+		file.Write8( GlobalVolume );
+		file.Write8( SetPan );
+		venv->ExportAttributes( file );
+		penv->ExportAttributes( file );
+		venv->ExportNodes( file );
+		penv->ExportNodes( file );
 	}
 
 	/**********************************************************************************************
@@ -237,14 +343,65 @@ namespace VRC6Bot {
 		delete[] nodes;
 	}
 
+	void InstrumentEnvelope::ExportAttributes( IO::File &file ) {
+		file.Write8( Length );
+		file.Write8( Sustain );
+		file.Write8( LoopStart );
+		file.Write8( LoopEnd );
+	}
+
+	void InstrumentEnvelope::ExportNodes( IO::File &file ) {
+		
+		for( int i = 0; i < Length; i++ ) {
+			file.Write8( nodes[i].y );
+			file.Write16( nodes[i].delta );
+		}
+	}
+
 	/**********************************************************************************************
 	 *
 	 * Export...
 	 *
 	 **********************************************************************************************/
+
+	void Bank::ExportI( const char *filename ) {
+		IO::File file( filename, IO::MODE_WRITE );
+		
+		file.Write16( SampleCount );
+		//file.Skip( 2*256 + 2 * SampleCount ); // skip pointers
+		
+		u16 ModulePointers[256];
+
+		// write modules
+		for( u32 i = 0; i < imodules.size(); i++ ) {
+			ModulePointers[i] = file.Tell();
+			imodules[i]->Export( file );
+		}
+
+		file.Seek( 0x0002 );
+		for( u32 i = 0; i < 256; i++ ) {
+			file.Write16( ModulePointers[i] );
+		}
+	}
+
+	void Bank::ExportE( const char *filename ) {
+		IO::File file( filename, IO::MODE_WRITE );
+
+		file.Skip( 2*256 + 2*256 + 2*SampleCount );
+		
+		u16 ModulePointers[256];
+		for( u32 i = 0; i < emodules.size(); i++ ) {
+			ModulePointers[i] = file.Tell();
+			emodules[i]->Export( file, imodules[i]->GetSequenceLength() );
+		}
+	}
 	
 	void Bank::Export( const char *ibank, const char *ebank ) {
-		IO::File file( ibank, IO::MODE_WRITE );
-		
+		if( ibank ) {
+			ExportI( ibank );
+		}
+		if( ebank ) {
+			ExportE( ebank );
+		}
 	}
 };
