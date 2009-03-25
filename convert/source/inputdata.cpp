@@ -101,7 +101,7 @@ namespace ConversionInput {
 			
 			std::string name = a->Name();
 
-			if( name == "file" ) filename = name;
+			if( name == "file" ) filename = a->Value();
 			else if( name == "edl" ) EDL = a->IntValue();
 			else if( name == "efb" ) EFB = TranslatePercentage(a->IntValue());
 			else if( name == "evl" ) EVL = TranslatePercentage(a->IntValue());

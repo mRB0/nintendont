@@ -71,10 +71,18 @@ namespace ITLoader {
 		for( int i = 0; i < 64; i++ )
 			ChannelVolume[i] = file.Read8();
 		
+		bool foundend=false;
+		int ActualLength=Length;
 		for( int i = 0; i < 256; i++ ) {
-			Orders[i] = i < Length ? file.Read8() : 0;
+			Orders[i] = i < Length ? file.Read8() : 255;
+			if( Orders[i] == 255 && !foundend ) {
+				foundend=true;
+				ActualLength = i+1;
+			}
 		}
 		
+		Length = ActualLength;
+
 		Instruments = new Instrument*[InstrumentCount];
 		Samples = new Sample*[SampleCount];
 		Patterns = new Pattern*[PatternCount];
@@ -113,6 +121,10 @@ namespace ITLoader {
 		} else {
 			Message = 0;
 		}
+
+		delete[] InstrTable;
+		delete[] SampleTable;
+		delete[] PatternTable;
 	}
 
 	Module::~Module() {
@@ -139,14 +151,14 @@ namespace ITLoader {
 		NewNoteAction = file.Read8();
 		DuplicateCheckType = file.Read8();
 		DuplicateCheckAction = file.Read8();
-		Fadeout = file.Read8();
+		Fadeout = file.Read16();
 		PPS = file.Read8();
 		PPC = file.Read8();
 		GlobalVolume = file.Read8();
 		DefaultPan = file.Read8();
 		RandomVolume = file.Read8();
 		RandomPanning = file.Read8();
-		TrackerVersion = file.Read8();
+		TrackerVersion = file.Read16();
 		NumberOfSamples = file.Read8();
 
 		file.Skip(
@@ -159,6 +171,8 @@ namespace ITLoader {
 		MidiChannel = file.Read8();
 		MidiProgram = file.Read8();
 		MidiBank = file.Read16();
+
+		file.Read8(); // reserved
 		
 		for( int i = 0; i < 120; i++ ) {
 			Notemap[i].Note = file.Read8();
@@ -201,7 +215,7 @@ namespace ITLoader {
 		file.Skip(
 			4		// IMPS
 			+12		// dos filename
-			+0		// 00h
+			+1		// 00h
 		);
 		GlobalVolume = file.Read8();
 		u8 Flags = file.Read8();

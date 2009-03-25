@@ -36,6 +36,7 @@ int main( int argc, char *argv[] ) {
 	// 3:
 	VRC6Bot::Bank result( bank, *data.targets[0] );
 
+	// export products
 	result.Export( data.targets[0]->output_i.c_str(), data.targets[0]->output_e.c_str() );
 
 	return 0;

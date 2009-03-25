@@ -7,6 +7,7 @@ namespace IO {
 	}
 
 	File::File( const char *filename, FileAccessMode m ) {
+		isOpen = false;
 		Open( filename, m );
 	}
 
@@ -18,6 +19,7 @@ namespace IO {
 		if( isOpen ) {
 			return false;
 		}
+		mode = m;
 		file = fopen( filename, m ? "wb" : "rb" );
 
 		isOpen = file ? true : false;
@@ -77,6 +79,13 @@ namespace IO {
 	void File::Write32( u32 data ) {
 		Write16( data & 0xFFFF );
 		Write16( data >> 16 );
+	}
+
+	void File::WriteAlign( u32 boundary ) {
+		int skip = Tell() % boundary;
+		if( skip ) {
+			Skip( boundary - skip );
+		}
 	}
 
 	void File::Seek( u32 amount ) {

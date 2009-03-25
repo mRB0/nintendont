@@ -10,7 +10,7 @@ namespace VRC6Bot {
 	 **********************************************************************************************/
 
 	Bank::Bank( const ITLoader::Bank &bank, const ConversionInput::SoundbankData &cinput ) {
-		
+		SampleCount = 0;
 		for( int i = 0, n = bank.modules.size(); i < n; i++ ) {
 			AddModule( *(bank.modules[i]), *cinput.modules[i] );
 		}
@@ -22,10 +22,10 @@ namespace VRC6Bot {
 		// load samples...
 		u16 sample_map[256];
 
-		for( int i = 0; i < mod.SampleCount; i++ ) {
+		for( int i = 9; i < mod.SampleCount; i++ ) {
 			ConversionInput::SampleData *cisd = 0;
 			for( u32 j = 0; j < cinput.samples.size(); j++ ) {
-				if( cinput.samples[j]->index == i ) {
+				if( cinput.samples[j]->index == (i+1) ) {
 					cisd = cinput.samples[j];
 					break;
 				}
@@ -177,6 +177,13 @@ namespace VRC6Bot {
 		return true;
 	}
 
+	void Sample::Export( IO::File &file ) const {
+		file.Write16( DataLength );
+		file.Write16( Loop );
+		for( int i = 0; i < DataLength; i++ )
+			file.Write8( BRRdata[i] );
+	}
+
 	/**********************************************************************************************
 	 *
 	 * IModule
@@ -196,7 +203,7 @@ namespace VRC6Bot {
 		instruments = new Instrument*[InstrumentCount];
 
 		for( int i = 0; i < SampleCount; i++ ) {
-			samples[i] = new SampleHeader( *source.Samples[i], sample_map[i], (sample_tab[i]) );
+			samples[i] = new SampleHeader( *(source.Samples[i]), sample_map[i], i < 9 ? 0 : (sample_tab[i-9]) );
 		}
 
 		for( int i = 0; i < InstrumentCount; i++ ) {
@@ -221,6 +228,8 @@ namespace VRC6Bot {
 		file.Write16( SampleCount );
 		file.Write16( InstrumentCount );
 		file.Write8( SequenceLength );
+
+		file.Write8( 0xFF );
 
 		u32 Tables = file.Tell();
 		
@@ -289,7 +298,7 @@ namespace VRC6Bot {
 
 	Instrument::Instrument( const ITLoader::Instrument &source ) {
 		Fadeout = source.Fadeout;
-		SampleIndex = source.Notemap[60].Sample;
+		SampleIndex = source.Notemap[60].Sample - 1;
 		GlobalVolume = source.GlobalVolume;
 		SetPan = source.DefaultPan;
 
@@ -364,13 +373,13 @@ namespace VRC6Bot {
 	 *
 	 **********************************************************************************************/
 
-	void Bank::ExportI( const char *filename ) {
+	void Bank::ExportI( const char *filename, u16 *ModulePointers ) {
 		IO::File file( filename, IO::MODE_WRITE );
 		
 		file.Write16( SampleCount );
 		//file.Skip( 2*256 + 2 * SampleCount ); // skip pointers
 		
-		u16 ModulePointers[256];
+		//u16 ModulePointers[256];
 
 		// write modules
 		for( u32 i = 0; i < imodules.size(); i++ ) {
@@ -378,30 +387,56 @@ namespace VRC6Bot {
 			imodules[i]->Export( file );
 		}
 
-		file.Seek( 0x0002 );
-		for( u32 i = 0; i < 256; i++ ) {
-			file.Write16( ModulePointers[i] );
-		}
+//		file.Seek( 0x0002 );
+//		for( u32 i = 0; i < 256; i++ ) {
+//			file.Write16( ModulePointers[i] );
+//		}
 	}
 
-	void Bank::ExportE( const char *filename ) {
+	void Bank::ExportE( const char *filename, u16 *IModulePointers ) {
 		IO::File file( filename, IO::MODE_WRITE );
 
-		file.Skip( 2*256 + 2*256 + 2*SampleCount );
+		for( u32 i = 0; i < 256; i++ ) {
+			file.Write16( IModulePointers[i] );
+		}
+		
+		file.Skip( 2*256 + 2*SampleCount );
 		
 		u16 ModulePointers[256];
 		for( u32 i = 0; i < emodules.size(); i++ ) {
-			ModulePointers[i] = file.Tell();
+			file.WriteAlign( 64 );
+			ModulePointers[i] = file.Tell() / 64;
 			emodules[i]->Export( file, imodules[i]->GetSequenceLength() );
 		}
+		
+		u16 *SamplePointers = new u16[SampleCount];
+		for( u32 i = 0; i < SampleCount; i++ ) {
+			file.WriteAlign( 64 );
+			SamplePointers[i] = file.Tell() / 64;
+			samples[i]->Export( file );
+		}
+
+		file.Seek( 0x200 );
+
+		for( u32 i = 0; i < 256; i++ ) {
+			file.Write16( ModulePointers[i] );
+		}
+
+		for( u32 i = 0; i < SampleCount; i++ ) {
+			file.Write16( SamplePointers[i] );
+		}
+
+		delete[] SamplePointers;
 	}
 	
 	void Bank::Export( const char *ibank, const char *ebank ) {
+
+		u16 IModPointers[256];
 		if( ibank ) {
-			ExportI( ibank );
+			ExportI( ibank, IModPointers );
 		}
 		if( ebank ) {
-			ExportE( ebank );
+			ExportE( ebank, IModPointers );
 		}
 	}
 };
