@@ -4,55 +4,150 @@
 #include "itloader.h"
 
 namespace VRC6Bot {
-	
-	class Sample {
-		
-	};
-	
-	class Instrument {
-		
-	};
-	
-	class SampleHeader {
-	
+
+	typedef struct { // IBANK
+
+		u8	y;
+		s16 delta;
+	} EnvelopeNode;
+
+	class InstrumentEnvelope { // IBANK
+
+	private:
+		u8	Sustain;
+		u8	LoopStart;
+		u8	LoopEnd;
+		u8	Length;
+
+		EnvelopeNode *nodes;
+
 	public:
+		InstrumentEnvelope( const ITLoader::Envelope & );
+		~InstrumentEnvelope();
+	};
+	
+	class Instrument { // IBANK
+
+	private:
+		u16	Fadeout;
+		u8	SampleIndex;
+		u8	GlobalVolume;
+		u8	SetPan;
+		
+		InstrumentEnvelope *venv;
+		InstrumentEnvelope *penv;
+
+	public:
+		Instrument( const ITLoader::Instrument &source );
+		~Instrument();
+	};
+
+	class Sample { // EBANK
+
+	private:
+		u16 DataLength;
+		u16 Loop;
+		u8	*BRRdata;
+
+	public:
+
+		Sample( const ITLoader::Sample &, const ConversionInput::SampleData * );
+		~Sample();
+
+		bool Compare( const Sample& ) const;
+	};
+	
+	class SampleHeader { // IBANK
+	
+	private:
 		u8	DefaultVolume;
 		u8	GlobalVolume;
 		u8	SetPan;
 		u8	RelativeNote;
 		u8	Finetune;
 		u16	SampleIndex;	// ignored for vrc6 samples
+
+	public:
+		SampleHeader( const ITLoader::Sample &, int, const Sample * );
+	};
+
+	class Pattern { // EBANK
+
+	private:
+		u16	DataLength;
+		u8	Rows;
+		u8	*Data;
+
+	public:
+		Pattern( ITLoader::Pattern & );
+		~Pattern();
 	};
 	
-	class IModule {
+	class IModule { // IBANK
+
+	private:
 		u16	SampleCount;
 		u16 InstrumentCount;
 		u8 SequenceLength;
 
 		SampleHeader **samples;
+		Instrument **instruments;
 
 		// sample pointers..
 		// instrument pointers..
+
+	public:
+		IModule( const ITLoader::Module &source, 
+				const ConversionInput::ModuleData &cinput, 
+				const u16 *sample_map, 
+				const std::vector<Sample*> &sample_tab );
+
+		~IModule();
 	};
 	
-	class EModule {
-	};
+	class EModule { // EBANK
 
-	class IBank {
-		u16	SampleCount;
-
-	};
-
-	class EBank {
+	private:
+		u8	InitialVolume;
+		u8	InitialTempo;
+		u8	InitialSpeed;
+		u8	InitialChannelVolume[11];
+		u8	InitialChannelPanning[11];
 		
+		s8	EchoVolumeLeft;
+		s8	EchoVolumeRight;
+		u8	EchoDelay;
+		s8	EchoFeedback;
+		s8	EchoFIR[8];
+		u8	EchoEnableBits;
+
+		u8	*Sequence;
+
+		u8	NumberOfPatterns;
+		Pattern **Patterns;
+
+	public:
+		EModule( const ITLoader::Module &source, const ConversionInput::ModuleData & );
+		~EModule();
 	};
 
 	class Bank {
 		
 	public:
-		Bank( const ITLoader::Bank & );
 
+		Bank( const ITLoader::Bank &, const ConversionInput::SoundbankData & );
 		void Export( const char *ibank, const char *ebank );
+
+		void AddModule( const ITLoader::Module &, const ConversionInput::ModuleData & );
+		int AddSample( VRC6Bot::Sample *s );
+		
+		// INTERNAL BANK
+		u16	SampleCount;
+		std::vector<IModule*> imodules;
+
+		// EXTERNAL BANK
+		std::vector<Sample*> samples;
+		std::vector<EModule*> emodules;
 	};
 };
 

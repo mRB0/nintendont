@@ -34,7 +34,7 @@ int main( int argc, char *argv[] ) {
 	ITLoader::Bank bank( data.targets[0] );
 		
 	// 3:
-	VRC6Bot::Bank result( bank );
+	VRC6Bot::Bank result( bank, *data.targets[0] );
 
 	result.Export( data.targets[0]->output_i.c_str(), data.targets[0]->output_e.c_str() );
 
