@@ -172,10 +172,6 @@
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
 			<File
-				RelativePath=".\source\conversion.cpp"
-				>
-			</File>
-			<File
 				RelativePath=".\source\convert.cpp"
 				>
 			</File>
@@ -185,6 +181,10 @@
 			</File>
 			<File
 				RelativePath=".\source\io.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\source\itloader.cpp"
 				>
 			</File>
 			<File
@@ -203,6 +203,10 @@
 				RelativePath=".\source\tinyxmlparser.cpp"
 				>
 			</File>
+			<File
+				RelativePath=".\source\vrc6bot.cpp"
+				>
+			</File>
 		</Filter>
 		<Filter
 			Name="Header Files"
@@ -214,10 +218,6 @@
 				>
 			</File>
 			<File
-				RelativePath=".\include\conversion.h"
-				>
-			</File>
-			<File
 				RelativePath=".\include\inputdata.h"
 				>
 			</File>
@@ -226,11 +226,19 @@
 				>
 			</File>
 			<File
+				RelativePath=".\include\itloader.h"
+				>
+			</File>
+			<File
 				RelativePath=".\tinystr.h"
 				>
 			</File>
 			<File
 				RelativePath=".\tinyxml.h"
+				>
+			</File>
+			<File
+				RelativePath=".\include\vrc6bot.h"
 				>
 			</File>
 		</Filter>

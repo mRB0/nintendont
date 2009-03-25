@@ -62,7 +62,7 @@ void main(void)
 	uint8_t duty = 0x00;
 	
 	uint8_t test = 0xAABB;
-	uint16_t test2 = test * 127;
+	int16_t test2 = test / 4;
 	
 	system_init();
 	
