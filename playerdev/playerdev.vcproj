@@ -42,7 +42,7 @@
 				Name="VCCLCompilerTool"
 				Optimization="0"
 				AdditionalIncludeDirectories="&quot;include&quot;,&quot;rtaudio\include&quot;,&quot;rtaudio&quot;"
-				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE;__WINDOWS_DS__"
+				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE;__WINDOWS_DS__;_CRT_SECURE_NO_WARNINGS"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="3"
@@ -173,6 +173,22 @@
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
 			<File
+				RelativePath=".\source\emu_mem.c"
+				>
+			</File>
+			<File
+				RelativePath=".\source\emu_spc.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\source\emu_timer.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\source\emu_vrc6.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\source\main.cpp"
 				>
 			</File>
@@ -190,6 +206,22 @@
 			Filter="h;hpp;hxx;hm;inl;inc;xsd"
 			UniqueIdentifier="{93995380-89BD-4b04-88EB-625FBE52EBFB}"
 			>
+			<File
+				RelativePath=".\include\emu_mem.h"
+				>
+			</File>
+			<File
+				RelativePath=".\include\emu_spc.h"
+				>
+			</File>
+			<File
+				RelativePath=".\include\emu_timer.h"
+				>
+			</File>
+			<File
+				RelativePath=".\include\emu_vrc6.h"
+				>
+			</File>
 			<File
 				RelativePath=".\include\player.h"
 				>

@@ -5,7 +5,9 @@
 #ifndef __PLAYER_H
 #define __PLAYER_H
 
-typedef struct t_VoiceData {
+//-------------------------------------------------------------------------------
+typedef struct t_ChannelData {
+//-------------------------------------------------------------------------------
 	uint8_t		Note;
 	uint8_t		Instrument;
 	uint8_t		VolumeCommand;
@@ -13,28 +15,27 @@ typedef struct t_VoiceData {
 	uint8_t		CommandParam;
 	uint16_t	Pitch;
 	uint8_t		Volume;
-	uint8_t		ChannelVolume;
+	uint8_t		VolumeScale;
 
 	uint8_t		CommandMemory[16];
-} VoiceData;
+} ChannelData;
 
-typedef struct t_PlayerData {
-	uint8_t		Tick;
-	uint8_t		Row;
-	uint8_t		Position;
-	uint8_t		Tempo;
-	uint8_t		Speed;
-	uint8_t		Active;
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-	uint24_t	eBank;
-	uint24_t	iBank;
-} PlayerData;
+void Player_Init();
+void Player_Reset();
+void Player_ChangePosition( uint8_t NewPosition );
+void Player_StartTimer();
+void Player_StopTimer();
+void Player_SetTempo( uint8_t NewTempo );
+void Player_Start( uint8_t ModuleIndex );
+void Player_SetIBank( rom uint8_t *InternalBankAddress );
+void Player_OnTick();
 
-enum {
-	MH_InitialTempo	=0,
-	MH_InitialSpeed	=1,
-	MH_Sequence
-	
-} ModuleHeaderDefinitions;
+#ifdef __cplusplus
+}
+#endif
 
 #endif
