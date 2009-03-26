@@ -1,0 +1,41 @@
+PORTA[7,5..0] = A7,A5..0
+PORTA[6]      = INTOSC output for VRC6 clock ("M2")
+
+PORTB[7..5]   = programming pins (FREE)
+PORTB[4]      = A6
+PORTB[3..0]   = A11..A8
+
+PORTC[7]      = UART RX
+PORTC[6]      = UART TX
+PORTC[5]      = /SPC_RESET (combine with address line and logic?)
+PORTC[4]      = /SPC_CE
+PORTC[3..0]   = A15..A12
+
+PORTD         = data bus
+
+PORTE[2]      = /VRC6_CE
+PORTE[1]      = /WE (/WR)
+PORTE[0]      = /OE (/RD)
+
+
+required for flash:
+A16
+A17
+/FL1_CS
+/FL2_CS
+
+/SPC_RESET can be moved to an address pin, that only outputs to the SPC if /SPC_CE is asserted.
+This would free up a pin.
+
+eg: if /SPC_RESET is on A7 (active high):
+
+ /SPC_CS | A7 || /SPC_RESET
+---------+----++------------
+       0 |  1 || 0
+       0 |  0 || 1
+       1 |  1 || 1
+       1 |  0 || 1
+
+/SPC_CS -> NOT \
+                -> AND -> NOT -> /SPC_RESET
+            A7 /
