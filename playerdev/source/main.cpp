@@ -13,6 +13,7 @@
 #include "player.h"
 #include "emu_mem.h"
 #include "emu_timer.h"
+#include "emu_vrc6.h"
 
 const int amp_spc = 256;
 const int amp_vrc6 = 256;
@@ -28,7 +29,16 @@ uint32_t audio_rate;
 int frames_until_next = 0;
 
 int16_t vrc6_buffer[65536];// = new int16_t[frames];
-int16_t spc_buffer[65536];// = new int16_t[frames];
+int16_t spc_buffer[65536*2];// = new int16_t[frames];
+
+int SL1=0, SL2=0;
+int SR1=0, SR2=0;
+
+enum {
+	c1 = 192,
+	c2 = 48,
+	c3 = 16
+};
 
 int AudioCallback( void *outputBuffer, void *,
 				  unsigned int frames, double,
@@ -56,25 +66,40 @@ int AudioCallback( void *outputBuffer, void *,
 
 			if( updatelen ) {
 				//SPCEMU_Run( updatelen, spc_buffer + writepos );
-				//VRC6EMU_Run( updatelen, vrc6_buffer + writepos );
+				VRC6EMU_RUN( updatelen, vrc6_buffer + writepos, audio_rate );
 				frames_until_next -= updatelen;
 				writepos += updatelen;
 			}
 		}
 	} else {
-		//SPCEMU_Run( updatelen, spc_buffer );
-		//VRC6EMU_Run( updatelen, vrc6_buffer );
+		//SPCEMU_Run( frames, spc_buffer );
+		VRC6EMU_RUN( frames, vrc6_buffer, audio_rate );
 	}
 	
 	int16_t *output = (int16_t*)outputBuffer;
 
 	// temporary clear until spc emulation is complete
-	for(i=0;i<frames;i++)spc_buffer[i]=0;
+	for(i=0;i<frames*2;i++)spc_buffer[i]=0;
 	
 	// mix output
+
+	int S;
 	
 	for( i = 0; i < frames; i++ ) {
-		*output++ = saturate_i16( (vrc6_buffer[i] * amp_vrc6 + spc_buffer[i] * amp_spc) >> 8 );
+
+		S = (saturate_i16( (vrc6_buffer[i] * amp_vrc6 + spc_buffer[i*2  ] * amp_spc) >> 8 )) >> 4;
+		S = (S * c1 + SL1 * c2 + SL2 * c3) >> 8;
+		// left
+		*output++ = S;
+		SL2 = SL1;
+		SL1 = S;
+
+		S = (saturate_i16( (vrc6_buffer[i] * amp_vrc6 + spc_buffer[i*2+1] * amp_spc) >> 8 )) >> 4;
+		S = (S * c1 + SR1 * c2 + SR2 * c3) >> 8;
+		// right
+		*output++ = S;
+		SR2 = SR1;
+		SR1 = S;
 	}
 	
 //	delete[] vrc6_buffer;
@@ -114,7 +139,7 @@ int main( int argc, char *argv[] ) {
 	sp.deviceId = audio.getDefaultOutputDevice();
 	sp.nChannels = 2;
 	sp.firstChannel = 0;
-	audio_rate = 22050;
+	audio_rate = 32000;
 	uint32_t frames = 1024;
 	
 	audio.openStream(
@@ -128,14 +153,17 @@ int main( int argc, char *argv[] ) {
 
 	audio.startStream();
 
-	Player_Init();
-	Player_Start(0);
-	Player_StartTimer();
+//	Player_Init();
+//	Player_Start(0);
+//	Player_StartTimer();
 
 	printf( "Press key to terminate\n" );
 	getchar();
 
 	audio.stopStream();
+
+	printf( "heh\n" );
+	getchar();
 
 	return 0;
 }

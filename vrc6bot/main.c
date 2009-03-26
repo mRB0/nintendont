@@ -170,6 +170,7 @@ void spc_test(void)
 
 void main(void)
 {
+	uint8_t TEST1 = sizeof( ram void* );
 	uint8_t m2 = 0;
 	
 	uint8_t duty = 0x00;
