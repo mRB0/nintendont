@@ -7,7 +7,7 @@
 #include "interrupts.h"
 #include "ports.h"
 
-void set_addr(uint16_t addr)
+void set_addr(uint24_t addr)
 {
 	LATA = addr & 0xff;
 	LATBbits.LATB4 = (addr & 0x40) >> 6;
@@ -15,12 +15,17 @@ void set_addr(uint16_t addr)
 	LATB = ((addr >> (uint16_t)8) & 0x0f) | (LATB & 0xf0);
 	LATC = ((addr >> (uint16_t)12) & 0x0f) | (LATC & 0xf0);
 	
+	LATCbits.LATC5 = (addr >> 16) & 0x1;
+	
+	// XXX temporary, for testing
+	LATCbits.LATC6 = (addr >> 17) & 0x1;
+	
 	Nop();
 	Nop();
 	
 }
 
-uint8_t port_read(uint16_t addr)
+uint8_t port_read(uint24_t addr)
 {
 	uint8_t data;
 	
@@ -28,7 +33,7 @@ uint8_t port_read(uint16_t addr)
 	TRIS_DATA = TRIS_INPUT;
 	
 	LAT_OE = 0;
-	Delay10TCYx(100);
+	//Delay10TCYx(100);
 	
 	data = PORT_DATA;
 	LAT_OE = 1;
@@ -36,12 +41,15 @@ uint8_t port_read(uint16_t addr)
 	return data;
 }
 	
-void port_write(uint16_t addr, uint8_t data)
+void port_write(uint24_t addr, uint8_t data)
 {
 	set_addr(addr);
 	TRIS_DATA = TRIS_OUTPUT;
 	LAT_DATA = data;
 	LAT_WE = 0;
+	Nop();
+	Nop();
+	
 	LAT_WE = 1;
 }
 	
@@ -55,11 +63,35 @@ void port_write(uint16_t addr, uint8_t data)
  */
 void spc_init(void)
 {
-	LAT_SPC_RESET = 0; // hold in reset
+	//LAT_SPC_RESET = 0; // hold in reset
 	LAT_SPC_CE = 1;
 	
-	TRIS_SPC_RESET = 0;
+	//TRIS_SPC_RESET = 0;
 	TRIS_SPC_CE = 0;
+	
+	// reset (A7 is SPC_RESET, not inverted, active whcn /CE)
+	set_addr(0x80);
+	LAT_SPC_CE = 0;
+	
+	Delay1KTCYx(100);
+	
+	LAT_SPC_CE = 1;
+}
+
+void flash_test(void)
+{
+	uint8_t sig_mfr, sig_dev;
+	LAT_FL0_CE = 0;
+	
+	port_write(0x0, 0x90);
+	sig_mfr = port_read(0x0);
+	
+	port_write(0x0, 0x90);
+	sig_dev = port_read(0x1);
+	
+	LAT_FL0_CE = 1;
+	
+	for(;;);
 }
 
 void system_init(void)
@@ -82,14 +114,17 @@ void system_init(void)
 	
 	
 	TRISA = 0;
-	TRISBbits.TRISB4 = 0; // this is address line A6, because RA6 is used for clock output.
+	//TRISBbits.TRISB4 = 0; // this is address line A6, because RA6 is used for clock output.
 	TRISB = 0;
 	TRISC = 0;
 	
 	TRIS_DATA = TRIS_INPUT;
 	
-	TRIS_VRC6_CE = 0;
 	LAT_VRC6_CE = 1;
+	TRIS_VRC6_CE = 0;
+	
+	LAT_FL0_CE = 1;
+	TRIS_FL0_CE = 0;
 	
 	LAT_WE = 1;
 	LAT_OE = 1;
@@ -112,24 +147,15 @@ void spc_test(void)
 {
 	uint8_t data;
 	
-	LAT_SPC_RESET = 1;
+	//LAT_SPC_RESET = 1;
 	
 	// wait for 0xaa
 	
 	LAT_SPC_CE = 0;
-	set_addr(0x0);
-	TRIS_DATA = TRIS_INPUT;
 	
 	do
 	{
-		//data = port_read(0x0);
-		
-		Delay10TCYx(255);
-		
-		LAT_OE = 0;
-		Delay10TCYx(255);
-		data = PORT_DATA;
-		LAT_OE = 1;
+		data = port_read(0x0);
 		
 		Nop();
 		Nop();
@@ -181,6 +207,7 @@ void main(void)
 	system_init();
 	
 	spc_test();
+	flash_test();
 	
 	set_addr(0x9000);
 	LATD = 0x3f;
