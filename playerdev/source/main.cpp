@@ -17,7 +17,7 @@
 #include "emu_spc.h"
 #include "spcunit.h"
 
-const int amp_spc = 256;//2048;
+const int amp_spc = 256;
 const int amp_vrc6 = 256;
 
 static inline int saturate_i16( int value ) {
@@ -30,8 +30,8 @@ uint32_t audio_rate;
 
 int frames_until_next = 0;
 
-int16_t vrc6_buffer[8192];// = new int16_t[frames];
-int16_t spc_buffer[8192*2];// = new int16_t[frames];
+int16_t vrc6_buffer[8192];
+int16_t spc_buffer[8192*2];
 
 int SL1=0, SL2=0;
 int SR1=0, SR2=0;
@@ -56,7 +56,6 @@ int AudioCallback( void *outputBuffer, void *,
 	uint32_t updatelen;
 	
 	int32_t writepos = 0;
-	
 	
 	if( TIMEREMU_IsActive() ) {
 		while( writepos < (int)frames ) {
@@ -111,8 +110,6 @@ int AudioCallback( void *outputBuffer, void *,
 		SR1 = S;
 	}
 	
-//	delete[] vrc6_buffer;
-//	delete[] spc_buffer;
 	UPDATING = false;
 	return 0;
 }
@@ -165,6 +162,7 @@ int main( int argc, char *argv[] ) {
 	
 	audio.startStream();
 
+	
 	{
 		int cv = 0;
 

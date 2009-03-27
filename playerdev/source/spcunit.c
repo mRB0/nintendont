@@ -33,7 +33,7 @@ void SPCU_BOOT() {
 #else
 	// INSERT SPC BOOT CODE
 #endif
-
+	
 	{
 		uint8_t i;
 		for( i = 0; i < 8; i++ ) {
