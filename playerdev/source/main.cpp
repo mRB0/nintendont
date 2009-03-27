@@ -15,6 +15,7 @@
 #include "emu_timer.h"
 #include "emu_vrc6.h"
 #include "emu_spc.h"
+#include "spcunit.h"
 
 const int amp_spc = 256;//2048;
 const int amp_vrc6 = 256;
@@ -166,69 +167,33 @@ int main( int argc, char *argv[] ) {
 
 	{
 		int cv = 0;
+
+		SPCU_LOAD( 1287 );
 		
-		SPCEMU_WRITEPORT(0,0x00);
-		SPCEMU_WRITEPORT(2,0x00);
-		SPCEMU_WRITEPORT(3,0x00);
-		
-		cv = 0x81;
-		SPCEMU_WRITEPORT(1,cv);
-		
-		while( SPCEMU_READPORT(1) != cv ) {}
-		
-		FILE *f = fopen( "piano.brr", "rb" );
+		FILE *f = fopen( "choir.brr", "rb" );
 
 		/// load sample
-		uint8_t a;
+		uint16_t a;
 		while( !feof(f) ) {
-			fread( &a, 1, 1, f );
-			SPCEMU_WRITEPORT(2, a );
-
-			fread( &a, 1, 1, f );
-			SPCEMU_WRITEPORT(3, a );
-
-			if( feof(f) ) {
-				cv = 0;
-				
-			} else {
-				cv ^= 0x80;
-			}
-			SPCEMU_WRITEPORT(1, cv);
-			while(SPCEMU_READPORT(1) != cv) {} //(these are useless)
+			
+			fread( &a, 2, 1, f );
+			SPCU_TRANSFER( a, feof(f) );
 		}
 		fclose(f);
 		
 		// SET M VOLUME
-		SPCEMU_WRITEPORT(0, 0x01);
-		SPCEMU_WRITEPORT(2, 0x7F);
-		SPCEMU_WRITEPORT(3, 0x7F);
-		cv = cv ^ 0x80;
-		SPCEMU_WRITEPORT(1, cv);
-		while(SPCEMU_READPORT(1) != cv) {}
+		SPCU_MVOL( 0x7F, 0x7F );
 		
 		// set pitch
-		SPCEMU_WRITEPORT(0, 0x10);
-		SPCEMU_WRITEPORT(2, 0x00);
-		SPCEMU_WRITEPORT(3, 0x10);
-		cv = cv ^ 0x80;
-		SPCEMU_WRITEPORT(1, cv);
-		while(SPCEMU_READPORT(1) != cv) {}
+		SPCU_PITCH( 0, 0x1000 );
 
-		// set volume
-		SPCEMU_WRITEPORT(0, 0x18);
-		SPCEMU_WRITEPORT(2, 0x40);
-		SPCEMU_WRITEPORT(3, 0x00);
-		cv = cv ^ 0x80;
-		SPCEMU_WRITEPORT(1, cv);
-		while(SPCEMU_READPORT(1) != cv) {}
+		// set volume,pan
+		SPCU_VOL( 0, 0x7F, 0x40 );
 
 		// set keyon
-		SPCEMU_WRITEPORT(0, 0x20);
-		SPCEMU_WRITEPORT(2, 0x7f);
-		SPCEMU_WRITEPORT(3, 0x00);
-		cv = cv ^ 0x80;
-		SPCEMU_WRITEPORT(1, cv);
-		while(SPCEMU_READPORT(1) != cv) {}
+		SPCU_KON( 0, 0x7F, 0 );
+
+		SPCU_RET();
 	}
 
 
@@ -236,7 +201,7 @@ int main( int argc, char *argv[] ) {
 //	Player_Start(0);
 //	Player_StartTimer();
 
-	printf( "Press key to terminate\n" );
+	printf( "Press ENTER key to terminate\n" );
 	getchar();
 
 	audio.stopStream();

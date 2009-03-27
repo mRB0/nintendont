@@ -35,11 +35,19 @@ static int phase2; // SAWTOOTH .16 fixed
 
 int dc_adjust = 0;
 
-void VRC6EMU_WRITEREG( int index, uint8_t data ) {
-	*(register_map[index]) = data;
+extern "C" {
+
+	void VRC6EMU_WRITEREG( int index, uint8_t data ) {
+		*(register_map[index]) = data;
+	}
+
 }
 
 void VRC6EMU_RUN( int frames, int16_t *buffer, double framerate ) {
+
+//	r_B000 = 30; // test saw
+//	r_B001 = 80;
+//	r_B002 = 1 | 0x80;
 
 	int duty0 = 0x1000 * (((r_9000 >> 4)&7)+1);
 	int duty1 = 0x1000 * (((r_A000 >> 4)&7)+1);
