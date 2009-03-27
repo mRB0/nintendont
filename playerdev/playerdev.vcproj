@@ -197,7 +197,15 @@
 				>
 			</File>
 			<File
+				RelativePath=".\source\ports.c"
+				>
+			</File>
+			<File
 				RelativePath=".\rtaudio\RtAudio.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\source\spcunit.c"
 				>
 			</File>
 		</Filter>
@@ -224,6 +232,14 @@
 			</File>
 			<File
 				RelativePath=".\include\player.h"
+				>
+			</File>
+			<File
+				RelativePath=".\include\ports.h"
+				>
+			</File>
+			<File
+				RelativePath=".\include\spcunit.h"
 				>
 			</File>
 			<File

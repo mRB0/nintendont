@@ -98,6 +98,8 @@ int BUFFER_REMAINING;
 int BUFFER_SAMPLER; // 16.16 fixed
 int32_t MIXING_BUFFER[BUFFER_SIZE*2];
 
+extern "C" {
+	
 void TransferSampleStart();
 void ContinueSampleTransfer();
 
@@ -219,7 +221,7 @@ void SPCEMU_WRITEPORT( int index, uint8_t value ) {
 
 void TransferSampleStart() {
 	SampleDirectory[NextSample].origin = TransferAddress;
-	SampleDirectory[NextSample].loop = PORTS_IN[2] | (PORTS_IN[3] << 8);
+	SampleDirectory[NextSample].loop = TransferAddress + (PORTS_IN[2] | (PORTS_IN[3] << 8));
 
 	mode = MODE_TRANSFER;
 }
@@ -231,6 +233,12 @@ void ContinueSampleTransfer() {
 		mode = MODE_IDLE;
 	}
 }
+
+uint8_t SPCEMU_READPORT( int index ) {
+	return PORTS_OUT[index];
+}
+
+} // extern "C"
 
 void SPCEMU_INIT() {
 	MVOL = 80;
@@ -261,10 +269,6 @@ void SPCEMU_INIT() {
 	for(int i = 0; i < 8; i++ ) {
 		VOICES[i].INIT();
 	}
-}
-
-uint8_t SPCEMU_READPORT( int index ) {
-	return PORTS_OUT[index];
 }
 
 void PROCESS_KEYOFF() {

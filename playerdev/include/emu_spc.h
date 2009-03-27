@@ -3,8 +3,15 @@
 
 #include "stdint.h"
 
-void SPCEMU_WRITEPORT( int index, uint8_t value );
-uint8_t SPCEMU_READPORT( int index );
+#ifdef __cplusplus
+extern "C" {
+#endif
+	void SPCEMU_WRITEPORT( int index, uint8_t value );
+	uint8_t SPCEMU_READPORT( int index );
+
+#ifdef __cplusplus
+}
+#endif
 
 void SPCEMU_INIT();
 uint8_t SPCEMU_READPORT( int index );

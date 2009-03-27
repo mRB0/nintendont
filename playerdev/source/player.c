@@ -5,7 +5,6 @@
 #include "emu_mem.h"
 /////////////////////////////////////////
 
-
 // very precise timer setting...
 static const rom uint16_t timer_tab[] = {
     24576, 25818, 26986, 28087, 29128, 30112, 31044, 31928, 32768, 33568, 34329, 35055, 35747, 36409, 37043, 37649, 38230, 38787, 39322, 39836, 40330, 40806, 41264, 41705, 42131, 42541, 42938, 43321, 43691, 44049, 44396, 44731, 
@@ -41,6 +40,11 @@ enum {
 	EBANK_IMOD_TABLE =0,
 	EBANK_EMOD_TABLE =0x200,
 	EBANK_SAMPLE_TABLE =0x400
+};
+
+enum {
+	INITIAL_SPC_VOLUME_L = 0x7F,
+	INITIAL_SPC_VOLUME_R = 0x7F
 };
 
 ChannelData Channels[11];
