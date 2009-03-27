@@ -5,9 +5,9 @@ PORTB[7..5]   = programming pins (FREE)
 PORTB[4]      = A6
 PORTB[3..0]   = A11..A8
 
-PORTC[7]      = UART RX
-PORTC[6]      = UART TX
-PORTC[5]      = /SPC_RESET (combine with address line and logic?)
+PORTC[7]      = UART RX (temp: /FL0_CS)
+PORTC[6]      = UART TX (temp: A17)
+PORTC[5]      = A16
 PORTC[4]      = /SPC_CE
 PORTC[3..0]   = A15..A12
 
@@ -21,13 +21,12 @@ PORTE[0]      = /OE (/RD)
 required for flash:
 A16
 A17
+/FL0_CS
 /FL1_CS
-/FL2_CS
 
-/SPC_RESET can be moved to an address pin, that only outputs to the SPC if /SPC_CE is asserted.
-This would free up a pin.
+/SPC_RESET is on an address pin, that only outputs to the SPC if /SPC_CE is asserted.
 
-eg: if /SPC_RESET is on A7 (active high):
+/SPC_RESET is on A7 (active HIGH, not low):
 
  /SPC_CS | A7 || /SPC_RESET
 ---------+----++------------
