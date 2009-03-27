@@ -1,5 +1,7 @@
 #include "emu_spc.h"
 
+#include "stdio.h"
+
 static const double sclk = 32000;
 
 static uint8_t PORTS_IN[4] = {0};
@@ -15,8 +17,8 @@ typedef struct {
 } Sample;
 
 static Sample SampleDirectory[64];
-static int NextSample = 0;
-static uint16_t TransferAddress = 0x600;
+static int NextSample;
+static uint16_t TransferAddress;
 
 static int8_t MVOL;
 static int8_t MVOLR;
@@ -47,7 +49,10 @@ static int mode;
 
 enum {
 	MODE_IDLE,
-	MODE_TRANSFER
+	MODE_TRANSFER,
+
+
+	TRANSFER_ADDRESS_START = 0x600
 };
 
 class DSPVOICE {
@@ -157,7 +162,8 @@ void SPCEMU_WRITEPORT( int index, uint8_t value ) {
 				RELEASED = true;
 				break;
 			case 0x09:	// RESET
-				// ???
+				NextSample = 0;
+				TransferAddress = TRANSFER_ADDRESS_START;
 				break;
 			case 0x0A:	// KOF
 				KOF_BITS = 0;
@@ -258,9 +264,12 @@ void SPCEMU_INIT() {
 	EON = 0;
 	EnableEcho = false;
 	RELEASED = true;
-
+	
+	NextSample = 0;
+	TransferAddress = TRANSFER_ADDRESS_START;
+	
 	KOF_BITS = 0;
-
+	
 	BUFFER_READ = 0;
 	BUFFER_WRITE = 0;
 	BUFFER_SAMPLER = 0;
@@ -546,30 +555,18 @@ static void refill_buffer( int desired ) {
 void SPCEMU_RUN( int frames, int16_t *buffer, double framerate ) {
 	if( !RELEASED ) {
 		// assert!
+		printf( "POOPIES\n" );
+	} else {
 		
+		PROCESS_KEYOFF();
+		PROCESS_DSP_UPDATE();
+		PROCESS_VOLUME();
 	}
-	
-	PROCESS_KEYOFF();
-	PROCESS_DSP_UPDATE();
-	PROCESS_VOLUME();
-	
-	//int samples_needed = (int)(sclk * frames / framerate) + 4;
-	//samples_needed -= samples_remaining_in_buffer();
-	//samples_needed = refill_buffer(samples_needed);
 	
 	int fstep = (int)((sclk*65536)/framerate);
 	
 	for( int frame = 0; frame < frames; frame++ ) {
-		/*
-		if( sampler_within_buffer() ) {
-			buffer[frame*2] = BUFFER_L[BUFFER_SAMPLER >> 16];
-			buffer[frame*2+1] = BUFFER_R[BUFFER_SAMPLER >> 16];
-			BUFFER_SAMPLER += fstep;
-			BUFFER_SAMPLER &= (BUFFER_SIZE<<16) - 1;
-		} else {
-			refill_buffer( (int)((sclk * (frames - frame)) / framerate) + 4);
-		}
-		*/
+
 		if( BUFFER_REMAINING <= 0 ) {
 			refill_buffer( (int)((sclk * (frames - frame)) / framerate) + 4);
 		}

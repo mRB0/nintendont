@@ -193,6 +193,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\source\pattern_table.c"
+				>
+			</File>
+			<File
 				RelativePath=".\source\player.c"
 				>
 			</File>

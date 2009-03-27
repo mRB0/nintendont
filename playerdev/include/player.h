@@ -16,6 +16,7 @@ typedef struct t_ChannelData {
 	uint16_t	Pitch;
 	uint8_t		Volume;
 	uint8_t		VolumeScale;
+	uint8_t		Panning;
 
 	uint8_t		CommandMemory[16];
 } ChannelData;

@@ -1,8 +1,11 @@
 #include "ports.h"
+
+#define PLAYERDEV
+
+#ifdef PLAYERDEV
+
 #include "emu_spc.h"
 #include "emu_vrc6.h"
-
-// [[REPLACE WITH ACTUAL PORT ACCESS]]
 
 uint8_t port_read(uint16_t addr) {
 	switch( addr ) {
@@ -48,3 +51,9 @@ void port_write(uint16_t addr, uint8_t data) {
 		VRC6EMU_WRITEREG( 8, data ); break;
 	}
 }
+
+#else
+
+// [real codes]
+
+#endif

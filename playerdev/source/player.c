@@ -1,9 +1,15 @@
 #include "player.h"
 
+#define PLAYERDEV
+
+#ifdef PLAYERDEV
 /////////////////////////////////////////
 #include "emu_timer.h"
 #include "emu_mem.h"
 /////////////////////////////////////////
+#endif
+
+#include "spcunit.h"
 
 // very precise timer setting...
 static const rom uint16_t timer_tab[] = {
@@ -15,6 +21,39 @@ static const rom uint16_t timer_tab[] = {
     58710, 58745, 58780, 58815, 58849, 58883, 58917, 58950, 58983, 59016, 59048, 59080, 59111, 59143, 59174, 59205, 59235, 59265, 59295, 59325, 59354, 59383, 59412, 59440, 59468, 59496, 59524, 59551, 59579, 59606, 59632, 59659, 
     59685, 59711, 59737, 59762, 59788, 59813, 59838, 59862, 59887, 59911, 59935, 59959, 59983, 60006, 60029, 60052, 60075, 60098, 60120, 60143, 60165, 60187, 60208, 60230, 60251, 60273, 60294, 60315, 60335, 60356, 60376, 60396, 
 };
+
+typedef struct {
+	uint8_t SampleCount;
+	uint8_t r1;
+	uint8_t InstrumentCount;
+	uint8_t r2;
+	uint8_t	SequenceLength;
+} IModuleData;
+
+typedef struct {
+	uint8_t DefaultVolume;
+	uint8_t GlobalVolume;
+	uint8_t SetPan;
+	uint8_t RelativeNote;
+	uint8_t Finetune;
+	uint16_t SampleIndex;
+} Sample;
+
+typedef struct {
+	uint16_t Fadeout;
+	uint8_t SampleIndex;
+	uint8_t r1;
+	uint8_t GlobalVolume;
+	uint8_t SetPan;
+	uint8_t V_Length;
+	uint8_t V_Sustain;
+	uint8_t V_LoopStart;
+	uint8_t V_LoopEnd;
+	uint8_t P_Length;
+	uint8_t P_Sustain;
+	uint8_t P_LoopStart;
+	uint8_t P_LoopEnd;
+} Instrument;
 
 //---------------------------------------------------------------------
 enum {
@@ -39,7 +78,9 @@ enum {
 enum {
 	EBANK_IMOD_TABLE =0,
 	EBANK_EMOD_TABLE =0x200,
-	EBANK_SAMPLE_TABLE =0x400
+	EBANK_SAMPLE_TABLE =0x400,
+
+	IMOD_TABLE_START =6
 };
 
 enum {
@@ -62,7 +103,22 @@ static uint16_t TimerReload;
 
 static rom uint8_t *IBank;
 
+static rom IModuleData *Module;
+
+#define ModuleAddr ((rom uint8_t*)Module)
+
+static rom uint16_t *SampleTable;
+static rom uint16_t *InstrumentTable;
+
 static uint24_t	EModAddress;
+static uint24_t SequenceAddress;
+
+static uint8_t PatternCount;
+
+static uint24_t PatternAddress;
+static uint8_t PatternRows;
+
+extern uint16_t PatternTable[];
 
 /*************************************************************************
  * Player_Init
@@ -70,7 +126,9 @@ static uint24_t	EModAddress;
  * Setup system
  *************************************************************************/
 void Player_Init() {
+	SPCU_BOOT();
 	
+	SPCU_MVOL( INITIAL_SPC_VOLUME_L, INITIAL_SPC_VOLUME_R );
 }
 
 /*************************************************************************
@@ -106,7 +164,23 @@ void Player_Reset() {
  * Handles +++ pattern skipping
  *************************************************************************/
 void Player_ChangePosition( uint8_t NewPosition ) {
+
+	uint8_t patt;
 	ModPosition = NewPosition;
+	
+	while( (patt = ReadEx8( SequenceAddress + ModPosition )) == 254 ) {
+
+		// skip +++ patterns
+		ModPosition++;
+	}
+
+	if( patt == 255 ) {
+		// STOP PLAYBACK!!!!!!!!!
+	}
+	
+	// get pattern address
+	PatternAddress = EModAddress + PatternTable[patt] + 4;
+	PatternRows = ReadEx8( PatternAddress - 2 );
 	
 	ModTick = 0;
 	ModRow = 0;
@@ -156,19 +230,95 @@ void Player_SetTempo( uint8_t NewTempo ) {
 	}
 }
 
+//
+// giev sample to spc
+//
+//
+void Player_LoadSample( uint16_t index ) {
+	uint24_t address;
+	uint16_t length;
+	uint16_t loop;
+	address = ReadEx16(EBANK_SAMPLE_TABLE + (index << 1)) << 6;
+	
+	length = ReadEx16( address );
+	address += 2;
+	loop = ReadEx16( address );
+	address += 2;
+
+	SPCU_LOAD( loop );
+
+	while( length > 0 ) {
+		uint16_t data = ReadEx16( address );
+		address += 2;
+		length -= 2;
+		SPCU_TRANSFER( data, length > 0 );
+	}
+}
+
 /*************************************************************************
- * Player_Start
+ * Player_Start( INDEX )
  *
  * Start module playback
  *************************************************************************/
 void Player_Start( uint8_t ModuleIndex ) {
+	
+	uint8_t i;
+
+	SPCU_MVOL(0,0);
+	SPCU_ECEN(0);
+	SPCU_RESET();
+
+	Module = (rom IModuleData*)ReadEx16( EBANK_IMOD_TABLE + ModuleIndex*2 );
+	SampleTable = (uint16_t*)(ModuleAddr + IMOD_TABLE_START);
+	InstrumentTable = SampleTable + Module->SampleCount;
+
 	EModAddress = ReadEx16( EBANK_EMOD_TABLE + ModuleIndex*2 ) << 6;
+	SequenceAddress = EModAddress + EMD_Sequence;
 	ModActive = 1;
 	
 	Player_SetTempo( ReadEx8( EModAddress + EMD_InitialTempo ) );
 	ModSpeed = ReadEx8( EModAddress + EMD_InitialSpeed );
 	
+	Player_ChangePosition( 0 );
 	
+	for( i = 0; i < 11; i++ ) {
+		Channels[i].Volume = ReadEx8( EModAddress + EMD_InitialChannelVolume + i );
+	}
+
+	for( i = 0; i < 11; i++ ) {
+		Channels[i].Panning = ReadEx8( EModAddress + EMD_InitialChannelPanning + i );
+	}
+	
+	PatternCount = ReadEx8( EModAddress + EMD_NumberOfPatterns );
+	
+	{ // setup PATTERN table
+		uint24_t addr = EModAddress + EMD_Sequence + Module->SequenceLength;
+		for( i = 0; i < PatternCount; i++ ) {
+			PatternTable[i] = addr - EModAddress;
+			addr += ReadEx16( addr ) + 4;
+		}
+	}
+	
+	{ // load SPC sampeels
+		for( i = 9; i < Module->SampleCount; i++ ) {
+			rom Sample *s = (rom Sample*)SampleTable[i];
+			Player_LoadSample( s->SampleIndex );
+		}
+	}
+	
+	{ // setup SPC echo
+		uint8_t edl = ReadEx8( EModAddress + EMD_EchoDelay );
+		SPCU_EDL( edl );
+		SPCU_EFB( ReadEx8( EModAddress + EMD_EchoFeedback ) );
+		for( i = 0; i < 8; i++ ) {
+			SPCU_COEF( i, EMD_EchoFirCoefficients + i );
+		}
+		if( edl ) {
+			SPCU_EVOL(	ReadEx8( EModAddress + EMD_EchoVolumeLeft ),
+						ReadEx8( EModAddress + EMD_EchoVolumeRight ) );
+			SPCU_ECEN( 1 );
+		}
+	}
 }
 
 /*************************************************************************
@@ -186,5 +336,7 @@ void Player_SetIBank( rom uint8_t *InternalBankAddress ) {
  * Update player routine (call every tick)
  *************************************************************************/
 void Player_OnTick() {
-	
+	if( ModTick == 0 ) {
+		
+	}
 }

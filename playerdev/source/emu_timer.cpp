@@ -11,11 +11,8 @@ static int prescaler;
 static bool active;
 
 static double counter;
-
 static bool need_update;
-
 static double timerhz;
-
 static double boundary;
 
 extern "C" {
