@@ -109,7 +109,7 @@
 ; << -- mm -- --
 ;
 ; x = voice index
-; pppp = pitch height (14-bit)
+; pppp = pitch height (14-bit) port2 is LSB
 ;-------------------------------------------------------------
 ; VOL	1y	Set Voice Volume
 ;
