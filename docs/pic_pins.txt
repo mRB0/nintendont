@@ -1,8 +1,14 @@
-PORTA[7,5..0] = A7,A5..0
-PORTA[6]      = INTOSC output for VRC6 clock ("M2")
+*** pending changes to code/hardware:
+    - RA6 used for addressing again (frees RB4)
+    - add serial port
+
+*** possible changes:
+    - 2-to-4 decoder for CE lines
+
+PORTA         = A7..0
 
 PORTB[7..5]   = programming pins (FREE)
-PORTB[4]      = A6
+PORTB[4]      = FREE
 PORTB[3..0]   = A11..A8
 
 PORTC[7]      = UART RX (temp: /FL0_CS)
