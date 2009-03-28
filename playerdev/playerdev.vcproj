@@ -189,6 +189,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\source\lut_div3.c"
+				>
+			</File>
+			<File
 				RelativePath=".\source\main.cpp"
 				>
 			</File>
@@ -209,7 +213,23 @@
 				>
 			</File>
 			<File
+				RelativePath=".\source\spc_ftab.c"
+				>
+			</File>
+			<File
 				RelativePath=".\source\spcunit.c"
+				>
+			</File>
+			<File
+				RelativePath=".\source\timer_tab.c"
+				>
+			</File>
+			<File
+				RelativePath=".\source\vrc6.c"
+				>
+			</File>
+			<File
+				RelativePath=".\source\vrc6_ftab.c"
 				>
 			</File>
 		</Filter>
@@ -248,6 +268,10 @@
 			</File>
 			<File
 				RelativePath=".\include\stdint.h"
+				>
+			</File>
+			<File
+				RelativePath=".\include\vrc6.h"
 				>
 			</File>
 		</Filter>

@@ -1,5 +1,6 @@
 #include "vrc6bot.h"
 #include "io.h"
+#include "math.h"
 
 namespace VRC6Bot {
 
@@ -139,10 +140,76 @@ namespace VRC6Bot {
 	Pattern::Pattern( ITLoader::Pattern &source ) {
 		Rows = (u8)(source.Rows-1);
 		DataLength = source.DataLength;
-		Data = new u8[ DataLength ];
 
-		for( int i = 0; i < DataLength; i++ )
-			Data[i] = source.Data[i];
+		// our data will be <rows> bytes larger
+		Data = new u8[ DataLength + source.Rows ];
+
+		int row;
+		u8* read = source.Data;
+		u8* write = Data;
+
+		u8	row_buffer[256];
+		int	rowsize;
+
+		u8	spc_hints;
+
+		u8	p_maskvar[8];
+
+		for( row = 0; row < source.Rows-1; row++ ) {
+			rowsize = 0;
+			spc_hints = 0;
+			u8 chvar = *read++;
+			row_buffer[rowsize++] = chvar;
+			
+			if( chvar == 0 ) {
+				*write++ = spc_hints;
+				for( int i = 0; i < rowsize; i++ )
+					*write++ = row_buffer[i];
+				continue;
+			}
+			
+			int channel = (chvar - 1) & 63;
+			u8 maskvar;
+			if( chvar & 128 ) {
+				maskvar = *read++;
+				maskvar |= maskvar<<4;
+				p_maskvar[channel] = maskvar;
+				row_buffer[rowsize++] = maskvar;
+			} else {
+				maskvar = p_maskvar[channel];
+			}
+
+			if( maskvar & 1 ) {		// note
+				row_buffer[rowsize++] = *read++;
+			}
+			if( maskvar & 2 ) {		// instr
+				row_buffer[rowsize++] = *read++;
+			}	
+			if( maskvar & 4 ) {		// vcmd
+				row_buffer[rowsize++] = *read++;
+			}
+
+			u8 cmd,param;
+			if( maskvar & 8 ) {		// cmd+param
+
+				row_buffer[rowsize++] = cmd = *read++;
+				row_buffer[rowsize++] = param = *read++;
+			}
+
+			if( (channel > 2) && (maskvar & 16) ) {
+				spc_hints |= 1<<(channel-3);
+				if( maskvar & 8 ) {
+					if( cmd == 7 ) { // glissando
+						spc_hints &= ~(1<<(channel-3));
+					} else if( cmd == 19 ) { // Sxx
+						if( (param & 0xF0) == 0xD0 ) { // note delay
+							spc_hints &= ~(1<<(channel-3));
+						}
+					}
+				}
+			}
+		}
+
 	}
 	
 	Pattern::~Pattern() {
@@ -276,18 +343,18 @@ namespace VRC6Bot {
 		GlobalVolume = source.GlobalVolume;
 		SetPan = source.DefaultPanning ^ 128;
 		
-		// TODO:relnote, finetune
-
+		double a = ((double)source.C5Speed * (ex ? ex->GetTuningFactor() : 1.0));
+		Pitch_Base = (int)floor(log(a / 8363.0) / log(2.0) * 768.0 + 0.5);
+		
 		SampleIndex = sample_index;
 	}
 
 	void SampleHeader::Export( IO::File &file ) {
 		file.Write8( DefaultVolume );
 		file.Write8( GlobalVolume );
-		file.Write8( SetPan );
-		file.Write8( RelativeNote );
-		file.Write8( Finetune );
+		file.Write16( Pitch_Base );
 		file.Write16( SampleIndex );
+		file.Write8( SetPan );
 	}
 
 	/**********************************************************************************************

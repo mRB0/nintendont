@@ -1,7 +1,9 @@
 # hello, world of python!
+# bpm -> timer table generator
 
-output = open("timer_tab.txt", "w")
-output.write("static const rom uint16_t timer_tab[] = {\n    ")
+output = open("timer_tab.c", "w")
+output.write("#include \"stdint.h\"\n");
+output.write("const rom uint16_t timer_tab[] = {\n    ")
 
 bpm = 0
 for bpm in range(32,64):

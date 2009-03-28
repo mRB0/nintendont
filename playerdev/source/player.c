@@ -10,7 +10,13 @@
 #endif
 
 #include "spcunit.h"
+#include "vrc6.h"
 
+extern const rom uint16_t spc_ftab[];
+extern const rom uint16_t vrc6_ftab[];
+extern const rom uint16_t timer_tab[];
+extern const rom uint8_t lut_div3[];
+/*
 // very precise timer setting...
 static const rom uint16_t timer_tab[] = {
     24576, 25818, 26986, 28087, 29128, 30112, 31044, 31928, 32768, 33568, 34329, 35055, 35747, 36409, 37043, 37649, 38230, 38787, 39322, 39836, 40330, 40806, 41264, 41705, 42131, 42541, 42938, 43321, 43691, 44049, 44396, 44731, 
@@ -21,7 +27,7 @@ static const rom uint16_t timer_tab[] = {
     58710, 58745, 58780, 58815, 58849, 58883, 58917, 58950, 58983, 59016, 59048, 59080, 59111, 59143, 59174, 59205, 59235, 59265, 59295, 59325, 59354, 59383, 59412, 59440, 59468, 59496, 59524, 59551, 59579, 59606, 59632, 59659, 
     59685, 59711, 59737, 59762, 59788, 59813, 59838, 59862, 59887, 59911, 59935, 59959, 59983, 60006, 60029, 60052, 60075, 60098, 60120, 60143, 60165, 60187, 60208, 60230, 60251, 60273, 60294, 60315, 60335, 60356, 60376, 60396, 
 };
-
+*/
 typedef struct {
 	uint8_t SampleCount;
 	uint8_t r1;
@@ -33,10 +39,9 @@ typedef struct {
 typedef struct {
 	uint8_t DefaultVolume;
 	uint8_t GlobalVolume;
-	uint8_t SetPan;
-	uint8_t RelativeNote;
-	uint8_t Finetune;
+	int16_t	PitchBase;
 	uint16_t SampleIndex;
+	uint8_t SetPan;
 } Sample;
 
 typedef struct {
@@ -98,6 +103,8 @@ static uint8_t ModTempo;
 static uint8_t ModSpeed;
 static uint8_t ModActive;
 
+static uint8_t ModGlobalVolume;
+
 static uint8_t TimerActive;
 static uint16_t TimerReload;
 
@@ -132,10 +139,10 @@ static uint8_t t_Panning;
 static uint16_t t_Pitch;
 
 static void UpdateChannels();
-static void UpdateChannel( ChannelData *ch );
+static void UpdateChannel( uint8_t );
 static void ProcessVolumeCommand( ChannelData *ch );
 static void ProcessCommand( ChannelData *ch );
-static void ProcessChannelAudio( uint8_t use_t );
+static void ProcessChannelAudio( uint8_t ch_index, uint8_t use_t );
 static void StartNewNote( ChannelData *ch );
 static void ReadPattern();
 static void ResetVolume( ChannelData *ch );
@@ -313,6 +320,7 @@ void Player_Start( uint8_t ModuleIndex ) {
 	
 	Player_SetTempo( ReadEx8( EModAddress + EMD_InitialTempo ) );
 	ModSpeed = ReadEx8( EModAddress + EMD_InitialSpeed );
+	ModGlobalVolume = ReadEx8( EModAddress + EMD_InitialVolume );
 	
 	Player_ChangePosition( 0 );
 	
@@ -384,12 +392,13 @@ static void UpdateChannels() {
 	uint8_t ch;
 	for( ch = 0; ch < 11; ch++ ) {
 		if( PatternUpdateFlags & (1<<ch) ) {
-			UpdateChannel( Channels + ch );
+			UpdateChannel( ch );
 		}
 	}
 }
 
-static void UpdateChannel( ChannelData *ch ) {
+static void UpdateChannel( uint8_t ch_index ) {
+	ChannelData *ch = Channels + ch_index;
 	if( ModTick == 0 ) {
 		if( ch->Flags & CF_NOTE ) {
 			
@@ -459,7 +468,7 @@ static void UpdateChannel( ChannelData *ch ) {
 		ProcessCommand( ch );
 	}
 	
-	ProcessChannelAudio( 1 );
+	ProcessChannelAudio( ch_index, 1 );
 }
 
 static void ResetVolume( ChannelData *ch ) {
@@ -501,20 +510,115 @@ static void ProcessVolumeCommand( ChannelData *ch ) {
 }
 
 static void ProcessCommand( ChannelData *ch ) {
+	// ...............
+}
+
+/*******************************************************************
+ * Get new pitch and 
+ *
+ *
+ *******************************************************************/
+static void StartNewNote( ChannelData *ch ) {
 	
+	// get new pitch
+	ch->Pitch = ch->p_Note << 6;
+	
+	// get sample# (if instrument exists)
+	if( ch->p_Instrument ) {
+		rom Instrument *ins = (rom Instrument*)(ModuleAddr + InstrumentTable[ch->p_Instrument-1]);
+		ch->Sample = ins->SampleIndex;
+	}
 }
 
 /********************************************************************
- * process envelopes and update audio
+ * Process all tick based stuff
+ *
+ * and update audio!
+ *
+ * use_t = replace channel data with 't' values
  ********************************************************************/
-static void ProcessChannelAudio( uint8_t use_t ) {
+static void ProcessChannelAudio( uint8_t ch_index, uint8_t use_t ) {
+
+	ChannelData *ch = Channels + ch_index;
+	Sample *samp;
+	Instrument *ins;
+	uint8_t VEV, PEV;
+	if( ch->Sample ) samp = (rom Sample*)(ModuleAddr + SampleTable[ch->Sample-1]);
+	if( ch->p_Instrument ) ins = (rom Instrument*)(ModuleAddr + InstrumentTable[ch->p_Instrument-1]);
 	
+	VEV = 64;
+	//TODO: process envelopes
+	
+	// set volume:
+	if( ch->p_Instrument ) {
+		
+		// volume - r=6bit+
+		uint8_t vol = use_t ? t_Volume : ch->Volume;
+		uint16_t vol16;
+		
+		// *CV - r=7bit+
+		vol = (vol * ch->VolumeScale) >> 5;
+		
+		// *SV - r=7bit+
+		if( ch->Sample ) {
+			vol = (vol * samp->GlobalVolume) >> 6;
+		}
+		
+		// *IV - r=7bit+
+		if( ch->p_Instrument ) {
+			vol = (vol * samp->GlobalVolume) >> 6;
+		}
+		
+		// *GV - r=14bit+
+		vol16 = vol * ModGlobalVolume;
+		
+		// *VEV - r = 14bit+
+		vol16 = (vol16 * VEV) >> 6;
+		
+		// *NFC - r = 7bit+
+		vol = (vol16 * ch->Fadeout) >> (10+7);
+		
+		if( ch_index < 3 ) {
+			VRC6_SetVolume( ch_index, vol >> 1, ch->Sample-1 );
+		} else {
+
+			// calculate panning
+			uint8_t p = ch->Panning << 1;
+			if( p == 128 ) p = 127;
+			if( vol == 128 ) vol = 127;
+			SPCU_VOL( ch_index-3, vol, p );
+		}
+	} else {
+		// zero volume
+		if( ch_index < 3 ) {
+			VRC6_SetVolume( ch_index, 0, 0 );
+		} else {
+			SPCU_VOL( ch_index-3, 0, 128 );
+		}
+	}
+	
+	// set pitch:
+	if( ch->Sample ) {
+		int16_t rpitch, f;
+		uint8_t oct;
+		rpitch = (use_t ? t_Pitch : ch->Pitch) + samp->PitchBase;
+		oct = lut_div3[(rpitch >> 8)];
+		f = (uint16_t)(oct*30) << 8;
+		if( ch_index >= 3 ) { // SPC
+			uint16_t spc_pitch = spc_ftab[f] >> (8-oct);
+			SPCU_PITCH( ch_index-3, spc_pitch );
+		} else { // VRC6
+			uint16_t vrc6_pitch = vrc6_ftab[f] >> oct;
+			VRC6_SetPitch( ch_index, vrc6_pitch );
+		}
+	}
 }
 
-static void StartNewNote( ChannelData *ch ) {
-	
-}
 
+/********************************************************************
+ * Read pattern data into channels
+ * Sets PatternUpdateFlags for whichever channels have data
+ ********************************************************************/
 static void ReadPattern() {
 	uint8_t channelvar;
 	
