@@ -1,0 +1,6 @@
+Patterns should be stored as the original IT patterns plus these modifications:
+
+Each ROW string should be prefixed with one byte that contains 'note hints' for all of the SPC channels
+if an SPC channel will have a note on during that row then the bit should be set for that channel (bit0-7 = channels3-10)
+
+Bits 4-7 of the maskvariable should *always* be equal to bits 0-3, (they are 'use data' flags rather than 'use previous data')

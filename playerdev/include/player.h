@@ -9,7 +9,7 @@
 typedef struct t_ChannelData {
 //-------------------------------------------------------------------------------
 	uint8_t		Note;			// note index
-	uint16_t	Pitch;			// ?
+	uint16_t	Pitch;			// 7.6 note value
 	uint8_t		Volume;			// 0..64
 	uint8_t		VolumeScale;	// 0..64
 	uint8_t		Panning;		// 0..64

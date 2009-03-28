@@ -63,6 +63,10 @@ namespace VRC6Bot {
 
 		bool Compare( const Sample& ) const;
 		void Export( IO::File & ) const;
+
+		double GetTuningFactor() const {
+			return TuningFactor;
+		}
 	};
 	
 	class SampleHeader { // IBANK
@@ -71,8 +75,7 @@ namespace VRC6Bot {
 		u8	DefaultVolume;
 		u8	GlobalVolume;
 		u8	SetPan;
-		u8	RelativeNote;
-		u8	Finetune;
+		s16	Pitch_Base;
 		u16	SampleIndex;	// ignored for vrc6 samples
 		
 	public:
