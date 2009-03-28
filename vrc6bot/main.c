@@ -10,6 +10,9 @@
 void set_addr(uint24_t addr)
 {
 	LATA = addr & 0xff;
+	//LATAbits.LATA0 = (addr & 0x02) >> 1;
+	//LATAbits.LATA1 = addr & 0x01;
+	
 	LATBbits.LATB4 = (addr & 0x40) >> 6;
 	
 	LATB = ((addr >> (uint16_t)8) & 0x0f) | (LATB & 0xf0);
@@ -64,24 +67,60 @@ void port_write(uint24_t addr, uint8_t data)
 void spc_init(void)
 {
 	//LAT_SPC_RESET = 0; // hold in reset
-	LAT_SPC_CE = 1;
+	DEACTIVATE_SPC();
 	
 	//TRIS_SPC_RESET = 0;
 	TRIS_SPC_CE = 0;
 	
 	// reset (A7 is SPC_RESET, not inverted, active whcn /CE)
 	set_addr(0x80);
-	LAT_SPC_CE = 0;
+	ACTIVATE_SPC();
 	
 	Delay1KTCYx(100);
 	
-	LAT_SPC_CE = 1;
+	DEACTIVATE_SPC();
+}
+
+void vrc6_init(void)
+{
+	TRIS_VRC6_CE = 1;
+	ACTIVATE_VRC6();
+	
+	// init vrc6 mapping stuff
+	
+	port_write(0x9003, 0x00);
+	
+	port_write(0x8000, 0x00);
+	port_write(0xc000, 0x00);
+	
+	port_write(0xb003, 0x08);
+	port_write(0xf000, 0x00);
+	port_write(0xf001, 0x00);
+	port_write(0xf002, 0x00);
+	
+	// init vrc6 sound
+	
+	port_write(0x9000, 0x7f);
+	port_write(0x9001, 0x00);
+	port_write(0x9002, 0x00);
+	
+	port_write(0xa000, 0x7f);
+	port_write(0xa001, 0x00);
+	port_write(0xa002, 0x00);
+	
+	port_write(0xb000, 0x3f);
+	port_write(0xb001, 0x00);
+	port_write(0xb002, 0x00);
+	
+	DEACTIVATE_VRC6();
+	
+	
 }
 
 void flash_test(void)
 {
 	uint8_t sig_mfr, sig_dev;
-	LAT_FL0_CE = 0;
+	ACTIVATE_FL0();
 	
 	port_write(0x0, 0x90);
 	sig_mfr = port_read(0x0);
@@ -89,21 +128,21 @@ void flash_test(void)
 	port_write(0x0, 0x90);
 	sig_dev = port_read(0x1);
 	
-	LAT_FL0_CE = 1;
+	DEACTIVATE_FL0();
 	
-	for(;;);
+	//for(;;);
 }
 
 void system_init(void)
 {
 	// 8 MHz: IRCF2:0 = 0b111
-	OSCCONbits.IRCF0 = 1;
+	OSCCONbits.IRCF0 = 0;
 	OSCCONbits.IRCF1 = 1;
 	OSCCONbits.IRCF2 = 1;
 	OSCCONbits.IDLEN = 1;
 	
 	// x4: 32 MHz
-	OSCTUNEbits.PLLEN = 0;
+	OSCTUNEbits.PLLEN = 1;
 	
 	// interrupts on or off?
 	ISR_disable();
@@ -120,10 +159,7 @@ void system_init(void)
 	
 	TRIS_DATA = TRIS_INPUT;
 	
-	LAT_VRC6_CE = 1;
-	TRIS_VRC6_CE = 0;
-	
-	LAT_FL0_CE = 1;
+	DEACTIVATE_FL0();
 	TRIS_FL0_CE = 0;
 	
 	LAT_WE = 1;
@@ -132,6 +168,7 @@ void system_init(void)
 	TRIS_OE = 0;
 	
 	spc_init();
+	vrc6_init();
 	
 	Delay100TCYx(255);
 	
@@ -151,11 +188,11 @@ void spc_test(void)
 	
 	// wait for 0xaa
 	
-	LAT_SPC_CE = 0;
+	ACTIVATE_SPC();
 	
 	do
 	{
-		data = port_read(0x0);
+		data = port_read(0x2140);
 		
 		Nop();
 		Nop();
@@ -165,32 +202,32 @@ void spc_test(void)
 	
 	do
 	{
-		data = port_read(0x1);
+		data = port_read(0x2141);
 		
 		Nop();
 		Nop();
 	} while(data != 0xbb);
 	
 	// write any non-zero value to 0x2141
-	port_write(0x01, 0x55);
+	port_write(0x2141, 0x55);
 	
 	// dest addr
-	port_write(0x02, 0x00);
-	port_write(0x03, 0x00);
+	port_write(0x2142, 0x00);
+	port_write(0x2143, 0x00);
 	// write 0xcc and wait for 0xcc
 	
-	port_write(0x00, 0xcc);
+	port_write(0x2140, 0xcc);
 	
 	do
 	{
-		data = port_read(0x00);
+		data = port_read(0x2140);
 		
 		Nop();
 		Nop();
 	} while(data != 0xcc);
 	
 	
-	LAT_SPC_CE = 1;
+	DEACTIVATE_SPC();
 	
 }
 
@@ -206,198 +243,44 @@ void main(void)
 	
 	system_init();
 	
-	spc_test();
-	flash_test();
-	
-	set_addr(0x9000);
-	LATD = 0x3f;
-	LATEbits.LATE1 = 0;
-	LATEbits.LATE2 = 0;
-	Nop();
-	LATEbits.LATE2 = 1;
-	LATEbits.LATE1 = 1;
-	
-	set_addr(0x9001);
-	LATD = 0xff;
-	LATEbits.LATE1 = 0;
-	LATEbits.LATE2 = 0;
-	Nop();
-	LATEbits.LATE2 = 1;
-	LATEbits.LATE1 = 1;
-
-	set_addr(0x9002);
-	LATD = 0x06;
-	LATEbits.LATE1 = 0;
-	LATEbits.LATE2 = 0;
-	Nop();
-	LATEbits.LATE2 = 1;
-	LATEbits.LATE1 = 1;
-	
-	set_addr(0xa000);
-	LATD = 0x7f;
-	LATEbits.LATE1 = 0;
-	LATEbits.LATE2 = 0;
-	Nop();
-	LATEbits.LATE2 = 1;
-	LATEbits.LATE1 = 1;
-	
-	set_addr(0xa001);
-	LATD = 0x33;
-	LATEbits.LATE1 = 0;
-	LATEbits.LATE2 = 0;
-	Nop();
-	LATEbits.LATE2 = 1;
-	LATEbits.LATE1 = 1;
-	
-	set_addr(0xa002);
-	LATD = 0x87;
-	LATEbits.LATE1 = 0;
-	LATEbits.LATE2 = 0;
-	Nop();
-	LATEbits.LATE2 = 1;
-	LATEbits.LATE1 = 1;
-	
-	set_addr(0xb000);
-	LATD = 0x3f;
-	LATEbits.LATE1 = 0;
-	LATEbits.LATE2 = 0;
-	Nop();
-	LATEbits.LATE2 = 1;
-	LATEbits.LATE1 = 1;
-	
-	set_addr(0xb001);
-	LATD = 0xff;
-	LATEbits.LATE1 = 0;
-	LATEbits.LATE2 = 0;
-	Nop();
-	LATEbits.LATE2 = 1;
-	LATEbits.LATE1 = 1;
-	
-	set_addr(0xb002);
-	LATD = 0x0f;
-	LATEbits.LATE1 = 0;
-	LATEbits.LATE2 = 0;
-	Nop();
-	LATEbits.LATE2 = 1;
-	LATEbits.LATE1 = 1;
+	//spc_test();
+	//flash_test();
 	
 	for(;;)
 	{
 		duty = (duty + 1) % 0x8;
 		
-		
 		// set duty
 		
-		set_addr(0x9000);
-		LATD = 0x0f | (duty << 4);
-		LATEbits.LATE1 = 0;
-		LATEbits.LATE2 = 0;
-		LATEbits.LATE2 = 1;
-		LATEbits.LATE1 = 1;
+		ACTIVATE_VRC6();
 		
-		//duty = (duty + 4) % 0x8;
-		
-		set_addr(0xa000);
-		LATD = 0x0f | (duty << 4);
-		LATEbits.LATE1 = 0;
-		LATEbits.LATE2 = 0;
-		LATEbits.LATE2 = 1;
-		LATEbits.LATE1 = 1;
-		
-		//duty = (duty + 4) % 0x8;
+		port_write(0x9000, 0x0f | (duty << 4));
+		port_write(0xa000, 0x0f | (duty << 4));
 		
 		// set pitches
 		
-		set_addr(0xa001);
-		LATD = 0x72;
-		LATEbits.LATE1 = 0;
-		LATEbits.LATE2 = 0;
-		LATEbits.LATE2 = 1;
-		LATEbits.LATE1 = 1;
+		port_write(0xa001, 0xa7);
+		port_write(0xa002, 0x83);
+		port_write(0x9001, 0xe7);
+		port_write(0x9002, 0x82);
 		
-		set_addr(0xa002);
-		LATD = 0x82;
-		LATEbits.LATE1 = 0;
-		LATEbits.LATE2 = 0;
-		LATEbits.LATE2 = 1;
-		LATEbits.LATE1 = 1;
+		Delay10KTCYx(50);
 		
-		set_addr(0x9001);
-		LATD = 0xd6;
-		LATEbits.LATE1 = 0;
-		LATEbits.LATE2 = 0;
-		LATEbits.LATE2 = 1;
-		LATEbits.LATE1 = 1;
-	
-		set_addr(0x9002);
-		LATD = 0x81;
-		LATEbits.LATE1 = 0;
-		LATEbits.LATE2 = 0;
-		LATEbits.LATE2 = 1;
-		LATEbits.LATE1 = 1;
+		port_write(0xa001, 0xe7);
+		port_write(0xa002, 0x82);
+		port_write(0x9001, 0x72);
+		port_write(0x9002, 0x82);
 		
-		//Delay10KTCYx(50);
+		Delay10KTCYx(50);
 		
-		set_addr(0xa001);
-		LATD = 0xe7;
-		LATEbits.LATE1 = 0;
-		LATEbits.LATE2 = 0;
-		LATEbits.LATE2 = 1;
-		LATEbits.LATE1 = 1;
-	
-		set_addr(0xa002);
-		LATD = 0x82;
-		LATEbits.LATE1 = 0;
-		LATEbits.LATE2 = 0;
-		LATEbits.LATE2 = 1;
-		LATEbits.LATE1 = 1;
-		
-		set_addr(0x9001);
-		LATD = 0x72;
-		LATEbits.LATE1 = 0;
-		LATEbits.LATE2 = 0;
-		LATEbits.LATE2 = 1;
-		LATEbits.LATE1 = 1;
-	
-		set_addr(0x9002);
-		LATD = 0x82;
-		LATEbits.LATE1 = 0;
-		LATEbits.LATE2 = 0;
-		LATEbits.LATE2 = 1;
-		LATEbits.LATE1 = 1;
-		
-		//Delay10KTCYx(50);
-		
-		set_addr(0xa001);
-		LATD = 0xa7;
-		LATEbits.LATE1 = 0;
-		LATEbits.LATE2 = 0;
-		LATEbits.LATE2 = 1;
-		LATEbits.LATE1 = 1;
-	
-		set_addr(0xa002);
-		LATD = 0x83;
-		LATEbits.LATE1 = 0;
-		LATEbits.LATE2 = 0;
-		LATEbits.LATE2 = 1;
-		LATEbits.LATE1 = 1;
+		port_write(0xa001, 0x72);
+		port_write(0xa002, 0x82);
+		port_write(0x9001, 0xd6);
+		port_write(0x9002, 0x81);
 
-		set_addr(0x9001);
-		LATD = 0xe7;
-		LATEbits.LATE1 = 0;
-		LATEbits.LATE2 = 0;
-		LATEbits.LATE2 = 1;
-		LATEbits.LATE1 = 1;
-	
-		set_addr(0x9002);
-		LATD = 0x82;
-		LATEbits.LATE1 = 0;
-		LATEbits.LATE2 = 0;
-		LATEbits.LATE2 = 1;
-		LATEbits.LATE1 = 1;
+		DEACTIVATE_VRC6();
 		
-		
-		//Delay10KTCYx(50);
+		Delay10KTCYx(50);
 		
 		
 	}
