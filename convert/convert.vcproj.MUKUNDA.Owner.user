@@ -11,7 +11,7 @@
 			<DebugSettings
 				Command="$(TargetPath)"
 				WorkingDirectory=""
-				CommandArguments="test.xml testout"
+				CommandArguments="test.xml"
 				Attach="false"
 				DebuggerType="3"
 				Remote="1"

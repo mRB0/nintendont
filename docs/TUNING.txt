@@ -43,7 +43,7 @@ oct = rpitch / 768
   (oct = LUT_DIV3[rpitch >> 8])
 
 f = rpitch - oct*768
-  (f = rpitch - ((oct*30) << 8))
+  (f = rpitch - ((oct*3) << 8))
 
 =============================
 SPC
@@ -60,5 +60,5 @@ VRC6:
 
 PERIOD = vrc6_ftab[f] >> oct
 
-vrc6_ftab[0..767] = round( 6848.3471565706086332655745545824 / 2^(i/768) )
+vrc6_ftab[0..767] = round( (1789772.7272/8363) * 2^5 / 2^(i/768) )
 // (octave 0)

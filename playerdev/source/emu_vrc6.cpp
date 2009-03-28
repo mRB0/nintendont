@@ -42,12 +42,12 @@ extern "C" {
 	}
 
 }
-
+int a = 0;
 void VRC6EMU_RUN( int frames, int16_t *buffer, double framerate ) {
 
-//	r_B000 = 30; // test saw
-//	r_B001 = 80;
-//	r_B002 = 1 | 0x80;
+//	r_A000 = 31; // test saw
+//	r_A001 =a++ ;
+//	r_A002 = 0 | 0x80;
 
 	int duty0 = 0x1000 * (((r_9000 >> 4)&7)+1);
 	int duty1 = 0x1000 * (((r_A000 >> 4)&7)+1);
@@ -74,10 +74,12 @@ void VRC6EMU_RUN( int frames, int16_t *buffer, double framerate ) {
 	int16_t *output = (int16_t*)buffer;
 	
 	int dca = 
-	-(	(x0 ? (v0 * (65536-duty0)) : 0) + 
-		(x1 ? (v1 * (65536-duty1)) : 0) +
+	-(	(x0 ? ((v0 * (65536-duty0))>>16) : 0) + 
+		(x1 ? ((v1 * (65536-duty1))>>16) : 0) +
 		(x2 ? ((sawP*6)>>3) : 0)
 	) / 2;
+
+	dca=0;
 	
 	int i;
 	for( i = 0; i < frames; i++ ) {

@@ -298,6 +298,7 @@ namespace ITLoader {
 	Pattern::Pattern( IO::File &file ) {
 		DataLength = file.Read16();
 		Rows = file.Read16();
+		file.Skip( 4 ); // reserved
 		Data = new u8[ DataLength ];
 		for( int i = 0; i < DataLength; i++ ) {
 			Data[i] = file.Read8();

@@ -289,11 +289,14 @@ void Player_LoadSample( uint16_t index ) {
 
 	SPCU_LOAD( loop );
 
+	if( !length )
+		SPCU_TRANSFER( 0, 1 );
+
 	while( length > 0 ) {
 		uint16_t data = ReadEx16( address );
 		address += 2;
 		length -= 2;
-		SPCU_TRANSFER( data, length > 0 );
+		SPCU_TRANSFER( data, length <= 0 );
 	}
 }
 
@@ -306,11 +309,11 @@ void Player_Start( uint8_t ModuleIndex ) {
 	
 	uint8_t i;
 
-	SPCU_MVOL(0,0);
+	SPCU_EVOL(0,0);
 	SPCU_ECEN(0);
 	SPCU_RESET();
 
-	Module = (rom IModuleData*)ReadEx16( EBANK_IMOD_TABLE + ModuleIndex*2 );
+	Module = (rom IModuleData*)(IBank + ReadEx16( EBANK_IMOD_TABLE + ModuleIndex*2 ));
 	SampleTable = (uint16_t*)(ModuleAddr + IMOD_TABLE_START);
 	InstrumentTable = SampleTable + Module->SampleCount;
 
@@ -319,13 +322,11 @@ void Player_Start( uint8_t ModuleIndex ) {
 	ModActive = 1;
 	
 	Player_SetTempo( ReadEx8( EModAddress + EMD_InitialTempo ) );
-	ModSpeed = ReadEx8( EModAddress + EMD_InitialSpeed );
+	ModSpeed = 1;//ReadEx8( EModAddress + EMD_InitialSpeed );
 	ModGlobalVolume = ReadEx8( EModAddress + EMD_InitialVolume );
 	
-	Player_ChangePosition( 0 );
-	
 	for( i = 0; i < 11; i++ ) {
-		Channels[i].Volume = ReadEx8( EModAddress + EMD_InitialChannelVolume + i );
+		Channels[i].VolumeScale = ReadEx8( EModAddress + EMD_InitialChannelVolume + i );
 	}
 
 	for( i = 0; i < 11; i++ ) {
@@ -344,7 +345,7 @@ void Player_Start( uint8_t ModuleIndex ) {
 	
 	{ // load SPC sampeels
 		for( i = 9; i < Module->SampleCount; i++ ) {
-			rom Sample *s = (rom Sample*)SampleTable[i];
+			rom Sample *s = (rom Sample*)(ModuleAddr + SampleTable[i]);
 			Player_LoadSample( s->SampleIndex );
 		}
 	}
@@ -354,7 +355,7 @@ void Player_Start( uint8_t ModuleIndex ) {
 		SPCU_EDL( edl );
 		SPCU_EFB( ReadEx8( EModAddress + EMD_EchoFeedback ) );
 		for( i = 0; i < 8; i++ ) {
-			SPCU_COEF( i, EMD_EchoFirCoefficients + i );
+			SPCU_COEF( i, ReadEx8( EModAddress + EMD_EchoFirCoefficients + i ) );
 		}
 		if( edl ) {
 			SPCU_EVOL(	ReadEx8( EModAddress + EMD_EchoVolumeLeft ),
@@ -362,6 +363,9 @@ void Player_Start( uint8_t ModuleIndex ) {
 			SPCU_ECEN( 1 );
 		}
 	}
+
+	
+	Player_ChangePosition( 0 );
 }
 
 /*************************************************************************
@@ -386,6 +390,16 @@ void Player_OnTick() {
 
 	UpdateChannels();
 
+	// (update remaining instruments? or do that in UpdateChannel
+
+	ModTick++;
+	if( ModTick >= ModSpeed ) {
+		ModTick = 0;
+		ModRow++;
+		if( ModRow > PatternRows ) {
+			Player_ChangePosition( ModPosition + 1 );
+		}
+	}
 }
 
 static void UpdateChannels() {
@@ -424,14 +438,14 @@ static void UpdateChannel( uint8_t ch_index ) {
 			
 			if( ch->Flags & CF_INSTR ) {
 				if( ch->p_Instrument ) {
-					rom Instrument* ins = (rom Instrument*)(IBank + InstrumentTable[ch->p_Instrument-1]);
+					rom Instrument* ins = (rom Instrument*)(ModuleAddr + InstrumentTable[ch->p_Instrument-1]);
 					if( !(ins->SetPan & 128) ) {
 						ch->Panning = ins->SetPan;
 					}
 				}
 
 				if( ch->Sample ) {
-					rom Sample *samp = (rom Sample*)(IBank + SampleTable[ch->Sample-1]);
+					rom Sample *samp = (rom Sample*)(ModuleAddr + SampleTable[ch->Sample-1]);
 					ch->Volume = samp->DefaultVolume;
 					if( !(samp->SetPan & 128) ) {
 						ch->Panning = samp->SetPan;
@@ -603,7 +617,7 @@ static void ProcessChannelAudio( uint8_t ch_index, uint8_t use_t ) {
 		uint8_t oct;
 		rpitch = (use_t ? t_Pitch : ch->Pitch) + samp->PitchBase;
 		oct = lut_div3[(rpitch >> 8)];
-		f = (uint16_t)(oct*30) << 8;
+		f = rpitch - ((uint16_t)(oct*3) << 8);
 		if( ch_index >= 3 ) { // SPC
 			uint16_t spc_pitch = spc_ftab[f] >> (8-oct);
 			SPCU_PITCH( ch_index-3, spc_pitch );
@@ -612,6 +626,8 @@ static void ProcessChannelAudio( uint8_t ch_index, uint8_t use_t ) {
 			VRC6_SetPitch( ch_index, vrc6_pitch );
 		}
 	}
+
+	if( ch_index > 2 ) SPCU_RET();
 }
 
 
@@ -623,31 +639,44 @@ static void ReadPattern() {
 	uint8_t channelvar;
 	
 	PatternUpdateFlags = 0;
+
+	SetExAddr( PatternAddress +1 );
+	PatternAddress++;
 	
 	while( channelvar = ReadEx8n() ) {
 		uint8_t channel = (channelvar-1) & 63;
 		uint8_t maskvar;
+
+		
+		PatternAddress++;
 		PatternUpdateFlags |= 1 << channel;
 		
-		if( channel & 128 ) {
+		if( channelvar & 128 ) {
 			maskvar = Channels[channel].p_MaskVar = ReadEx8n();
+			PatternAddress++;
 		} else {
 			maskvar = Channels[channel].p_MaskVar;
 		}
 		
 		if( maskvar & 1 ) {
 			Channels[channel].p_Note = ReadEx8n();
+			PatternAddress++;
 		}
 		if( maskvar & 2 ) {
 			Channels[channel].p_Instrument = ReadEx8n();
+			PatternAddress++;
 		}
 		if( maskvar & 4 ) {
 			Channels[channel].p_VolumeCommand = ReadEx8n();
+			PatternAddress++;
 		}
 		if( maskvar & 8 ) {
 			Channels[channel].p_Command = ReadEx8n();
 			Channels[channel].p_Parameter = ReadEx8n();
+			PatternAddress+=2;
 		}
 		Channels[channel].Flags = maskvar >> 4;
 	}
+
+	PatternAddress++;
 }
