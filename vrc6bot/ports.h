@@ -28,4 +28,18 @@
 #define TRIS_INPUT (0xff)
 #define TRIS_OUTPUT (0x00)
 
+// macros for CE
+
+#define ACTIVATE_VRC6()			LAT_VRC6_CE = 0
+#define DEACTIVATE_VRC6()		LAT_VRC6_CE = 1
+
+#define ACTIVATE_SPC()			LAT_SPC_CE = 0
+#define DEACTIVATE_SPC()		LAT_SPC_CE = 1
+
+#define ACTIVATE_FL0()			LAT_FL0_CE = 0
+#define DEACTIVATE_FL0()		LAT_FL0_CE = 1
+
+#define ACTIVATE_FL1()			LAT_FL1_CE = 0
+#define DEACTIVATE_FL1()		LAT_FL1_CE = 1
+
 #endif
