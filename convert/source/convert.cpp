@@ -20,7 +20,7 @@ const char USAGE[] = {
 
 int main( int argc, char *argv[] ) {
 	
-	if( argc < 3 )
+	if( argc < 2 )
 		printf( USAGE );
 	
 	TiXmlDocument doc( argv[1] );

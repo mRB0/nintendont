@@ -149,14 +149,13 @@ namespace VRC6Bot {
 		u8* write = Data;
 
 		u8	row_buffer[256];
-		int	rowsize;
+		int	rowsize = 0;
 
 		u8	spc_hints;
 
 		u8	p_maskvar[8];
 
-		for( row = 0; row < source.Rows-1; row++ ) {
-			rowsize = 0;
+		for( row = 0; row < source.Rows-1; ) {
 			spc_hints = 0;
 			u8 chvar = *read++;
 			row_buffer[rowsize++] = chvar;
@@ -165,6 +164,9 @@ namespace VRC6Bot {
 				*write++ = spc_hints;
 				for( int i = 0; i < rowsize; i++ )
 					*write++ = row_buffer[i];
+				rowsize = 0;
+
+				row++;
 				continue;
 			}
 			
@@ -319,11 +321,12 @@ namespace VRC6Bot {
 		u32 End = file.Tell();
 		file.Seek( Tables );
 
+		for( int i = 0; i < SampleCount; i++ )
+			file.Write16( SamplePointers[i] );
+
 		for( int i = 0; i < InstrumentCount; i++ )
 			file.Write16( InstrumentPointers[i] );
 		
-		for( int i = 0; i < SampleCount; i++ )
-			file.Write16( SamplePointers[i] );
 
 		file.Seek( End );
 	}

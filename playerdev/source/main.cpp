@@ -162,6 +162,8 @@ int main( int argc, char *argv[] ) {
 	
 	audio.startStream();
 
+	Player_Init();
+	Player_SetIBank( GetIBankPtr() );
 	
 	{
 		int cv = 0;
@@ -178,7 +180,7 @@ int main( int argc, char *argv[] ) {
 			SPCU_TRANSFER( a, feof(f) );
 		}
 		fclose(f);
-		
+		/*
 		// SET M VOLUME
 		SPCU_MVOL( 0x7F, 0x7F );
 		
@@ -190,14 +192,12 @@ int main( int argc, char *argv[] ) {
 
 		// set keyon
 		SPCU_KON( 0, 0x7F, 0 );
-
+*/
 		SPCU_RET();
 	}
-
-
-//	Player_Init();
-//	Player_Start(0);
-//	Player_StartTimer();
+	
+	Player_Start(0);
+	Player_StartTimer();
 
 	printf( "Press ENTER key to terminate\n" );
 	getchar();
