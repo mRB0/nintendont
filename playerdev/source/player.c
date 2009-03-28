@@ -118,7 +118,27 @@ static uint8_t PatternCount;
 static uint24_t PatternAddress;
 static uint8_t PatternRows;
 
+static uint16_t PatternUpdateFlags;
+
 extern uint16_t PatternTable[];
+
+//
+// temporary values for some module channel processing....
+//
+
+static uint8_t t_SampleOffset;
+static uint8_t t_Volume;
+static uint8_t t_Panning;
+static uint16_t t_Pitch;
+
+static void UpdateChannels();
+static void UpdateChannel( ChannelData *ch );
+static void ProcessVolumeCommand( ChannelData *ch );
+static void ProcessCommand( ChannelData *ch );
+static void ProcessChannelAudio( uint8_t use_t );
+static void StartNewNote( ChannelData *ch );
+static void ReadPattern();
+static void ResetVolume( ChannelData *ch );
 
 /*************************************************************************
  * Player_Init
@@ -138,22 +158,37 @@ void Player_Init() {
  *************************************************************************/
 void Player_Reset() {
 	// Reset voices
-	uint8_t i, j;
+	uint8_t i;//, j;
 	
 	ModActive = 0;
 	for( i = 0; i < 11; i++ ) {
 		Channels[i].Note			= 0;
-		Channels[i].Instrument		= 0;
-		Channels[i].VolumeCommand	= 0;
-		Channels[i].Command			= 0;
-		Channels[i].CommandParam	= 0;
 		Channels[i].Pitch			= 0;
 		Channels[i].Volume			= 0;
 		Channels[i].VolumeScale		= 0;
+		Channels[i].Panning			= 0;
+		Channels[i].Sample			= 0;
+
+		Channels[i].p_Note			= 0;
+		Channels[i].p_Instrument	= 0;
+		Channels[i].p_VolumeCommand	= 0;
+		Channels[i].p_Command		= 0;
+		Channels[i].p_Parameter		= 0;
+		Channels[i].p_MaskVar		= 0;
+		Channels[i].Flags			= 0;
+		Channels[i].FlagsH			= 0;
+
+
+		Channels[i].VE_Y			= 0;
+		Channels[i].VE_Node			= 0;
+		Channels[i].PE_Y			= 0;
+		Channels[i].PE_Node			= 0;
+
+		Channels[i].Fadeout			= 0;
 		
-		for( j = 0; j < 16; j++ ) {
-			Channels[i].CommandMemory[j] = 0;
-		}
+//		for( j = 0; j < 16; j++ ) {
+//			Channels[i].CommandMemory[j] = 0;
+//		}
 	}
 }
 
@@ -336,7 +371,179 @@ void Player_SetIBank( rom uint8_t *InternalBankAddress ) {
  * Update player routine (call every tick)
  *************************************************************************/
 void Player_OnTick() {
+
 	if( ModTick == 0 ) {
+		ReadPattern();
+	}
+
+	UpdateChannels();
+
+}
+
+static void UpdateChannels() {
+	uint8_t ch;
+	for( ch = 0; ch < 11; ch++ ) {
+		if( PatternUpdateFlags & (1<<ch) ) {
+			UpdateChannel( Channels + ch );
+		}
+	}
+}
+
+static void UpdateChannel( ChannelData *ch ) {
+	if( ModTick == 0 ) {
+		if( ch->Flags & CF_NOTE ) {
+			
+			if( ch->p_Note == 254 ) {
+				// note cut
+			} else if( ch->p_Note == 255 ) {
+				// note off
+			} else {
+				uint8_t glissando = 0;
+				if( ch->Flags & CF_CMD ) {
+					if( ch->p_Command == 7 ) {
+						// glissando, cancel note
+						glissando = 1;
+					}
+				}
+				
+				if( glissando ) {
+					
+				} else {
+					StartNewNote( ch );
+				}
+			}
+			
+			if( ch->Flags & CF_INSTR ) {
+				if( ch->p_Instrument ) {
+					rom Instrument* ins = (rom Instrument*)(IBank + InstrumentTable[ch->p_Instrument-1]);
+					if( !(ins->SetPan & 128) ) {
+						ch->Panning = ins->SetPan;
+					}
+				}
+
+				if( ch->Sample ) {
+					rom Sample *samp = (rom Sample*)(IBank + SampleTable[ch->Sample-1]);
+					ch->Volume = samp->DefaultVolume;
+					if( !(samp->SetPan & 128) ) {
+						ch->Panning = samp->SetPan;
+					}
+				}
+			}
+			
+			if( ch->Flags & (CF_NOTE|CF_INSTR) ) {
+				ResetVolume( ch );
+			}
+			
+			if( ch->Flags & (CF_NOTE) ) {
+				if( ch->p_Note == 255 ) {
+					ch->FlagsH &= ~CFH_KEYON;
+				} else if( ch->p_Note == 254 ) {
+					ch->Volume = 0;
+				}
+			}
+			ch->Flags &= ~CF_NOTE;
+		}
+	}
+	
+	if( ch->Flags & CF_VCMD ) {
+		ProcessVolumeCommand( ch );
+	}
+	
+	// process commands.....
+	t_Pitch = ch->Pitch;
+	t_SampleOffset = 0;
+	t_Volume = ch->Volume;
+	t_Panning = ch->Panning;
+	
+	if( ch->Flags & CF_CMD ) {
+		ProcessCommand( ch );
+	}
+	
+	ProcessChannelAudio( 1 );
+}
+
+static void ResetVolume( ChannelData *ch ) {
+	ch->Fadeout = 1024;
+
+	//TODO: reset envelopes
+
+	// set keyon, clear fade
+	ch->FlagsH |= CFH_KEYON;
+	ch->FlagsH &= ~CFH_FADE;
+}
+
+static void ProcessVolumeCommand( ChannelData *ch ) {
+	uint8_t v = ch->p_VolumeCommand;
+	int8_t vt = ch->Volume;
+	if( v < 65 ) {			// set volume
+		ch->Volume = v;
+	} else if( v < 75 ) {	// fine vol up
+		if( ModTick == 0 ) {
+			vt += v - 65;
+			ch->Volume = vt > 64 ? 64 : vt;
+		}
+	} else if( v < 85 ) {	// fine vol down
+		if( ModTick == 0 ) {
+			vt -= v - 75;
+			ch->Volume = vt < 0 ? 0 : vt;
+		}
+	} else if( v < 95 ) {	// vol up
+		if( ModTick != 0 ) {
+			vt += v - 85;
+			ch->Volume = vt > 64 ? 64 : vt;
+		}
+	} else {				// vol down
+		if( ModTick != 0 ) {
+			vt -= v - 95;
+			ch->Volume = vt < 0 ? 0 : vt;
+		}
+	}
+}
+
+static void ProcessCommand( ChannelData *ch ) {
+	
+}
+
+/********************************************************************
+ * process envelopes and update audio
+ ********************************************************************/
+static void ProcessChannelAudio( uint8_t use_t ) {
+	
+}
+
+static void StartNewNote( ChannelData *ch ) {
+	
+}
+
+static void ReadPattern() {
+	uint8_t channelvar;
+	
+	PatternUpdateFlags = 0;
+	
+	while( channelvar = ReadEx8n() ) {
+		uint8_t channel = (channelvar-1) & 63;
+		uint8_t maskvar;
+		PatternUpdateFlags |= 1 << channel;
 		
+		if( channel & 128 ) {
+			maskvar = Channels[channel].p_MaskVar = ReadEx8n();
+		} else {
+			maskvar = Channels[channel].p_MaskVar;
+		}
+		
+		if( maskvar & 1 ) {
+			Channels[channel].p_Note = ReadEx8n();
+		}
+		if( maskvar & 2 ) {
+			Channels[channel].p_Instrument = ReadEx8n();
+		}
+		if( maskvar & 4 ) {
+			Channels[channel].p_VolumeCommand = ReadEx8n();
+		}
+		if( maskvar & 8 ) {
+			Channels[channel].p_Command = ReadEx8n();
+			Channels[channel].p_Parameter = ReadEx8n();
+		}
+		Channels[channel].Flags = maskvar >> 4;
 	}
 }

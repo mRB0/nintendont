@@ -21,6 +21,10 @@ uint16_t ReadEx16( uint24_t address ) {
 	return a | (ReadEx8n() << 8);
 }
 
+void SetExAddr( uint24_t address ) {
+	ExNext = address;
+}
+
 uint8_t *GetEBankPtr() {
 	return EBANK;
 }
