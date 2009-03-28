@@ -1,0 +1,64 @@
+.....TUNING
+------------------
+
+LOWEST NOTE  = C-0 = 0
+MIDDLE C     = C-5 = 60
+HIGHEST NOTE = B-8 = 107
+
+vrc6 note range : A-0 -> B-8
+spc note range  : C-0 -> B-8
+
+SPC MIDDLE C PITCH = 1070.464
+VRC6 MIDDLE C PERIOD = 214.01084864283151978954920483072
+
+note:
+vrc6 will lose frequency precision in the higher pitch range
+spc will lose precision in the lower range
+
+spc output freq = pitch_height * 7.8125
+vrc6 output freq = 1789772.7272 / P
+
+vrc6 pulse is 16 samples wide
+  32 in template module
+
+vrc6 saw is 14 samples wide
+  28 in template module
+
+========================================
+on new note:
+========================================
+pitch = note << 6
+
+========================================
+compute frequency:
+========================================
+
+rpitch = pitch + pitch_base
+
+pitch_base is a signed offset (located in internal sample structure)
+  calculated from C5SPEED during conversion
+  pitch_base = round(log_2(C5SPEED/8363) * 768)
+
+oct = rpitch / 768
+  (oct = LUT_DIV3[rpitch >> 8])
+
+f = rpitch - oct*768
+  (f = rpitch - ((oct*30) << 8))
+
+=============================
+SPC
+=============================
+
+PITCH_HEIGHT = spc_ftab[f] >> (8-oct)
+
+spc_ftab[0..767] = round( (1070.464*8) * 2^(i/768) )
+// (octave 8)
+
+=============================
+VRC6:
+=============================
+
+PERIOD = vrc6_ftab[f] >> oct
+
+vrc6_ftab[0..767] = round( 6848.3471565706086332655745545824 / 2^(i/768) )
+// (octave 0)
