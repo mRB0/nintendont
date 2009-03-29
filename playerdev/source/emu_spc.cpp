@@ -462,6 +462,7 @@ void PROCESS_DSP_UPDATE() {
 				VOICE_OFFSET[i] * 144
 			);
 			VOICE_KEYON[i] = 0;
+			VOICE_OFFSET[i] = 0;
 		}
 
 		if( PAN_BITS & (1<<i) ) {

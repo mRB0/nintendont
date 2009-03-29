@@ -2,8 +2,12 @@
 
 #include "emu_vrc6.h"
 
-static const double clock = 1789772.7272;
-static const int volume = 32767 * 60/100;
+static const double clock = 2048000.0;//1789772.7272;
+static const int volume = 32767 * 100/100;
+
+// pulse output: 4bit
+// saw output: 5bit
+// final output: 6bit
 
 // VRC6 Registers
 
@@ -94,6 +98,9 @@ void VRC6EMU_RUN( int frames, int16_t *buffer, double framerate ) {
 		if( dc_adjust < dca ) dc_adjust++;
 		if( dc_adjust > dca ) dc_adjust--;
 		
-		*output++ = (((s1 + s2 + s3 + dc_adjust) * volume) >> 6);
+		int a = (((s1 + s2 + s3 + dc_adjust) * volume) >> 6);
+		if( a > 32767 ) a = 32767;
+		if( a < -32768 ) a = -32768;
+		*output++ = a;
 	}
 }
