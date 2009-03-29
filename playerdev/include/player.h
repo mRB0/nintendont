@@ -50,7 +50,8 @@ enum {
 enum {
 	CFH_KEYON	=1,
 	CFH_FADE	=2,
-	CFH_START	=4
+	CFH_START	=4,
+	CFH_DELAY	=8
 };
 
 #ifdef __cplusplus

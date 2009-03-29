@@ -538,7 +538,7 @@ static void ResetVolume( ChannelData *ch ) {
 
 	// set keyon, clear fade
 	ch->FlagsH |= CFH_KEYON;
-	ch->FlagsH &= ~CFH_FADE;
+	ch->FlagsH &= ~(CFH_FADE|CFH_DELAY);
 }
 
 static void ProcessVolumeCommand( ChannelData *ch ) {
@@ -782,84 +782,87 @@ static void ProcessChannelAudio( uint8_t ch_index, uint8_t use_t ) {
 	} else {
 		VEV = 64;
 	}
-	
-	// set volume:
-	if( ch->p_Instrument ) {
+
+	if( !(ch->FlagsH & CFH_DELAY) ) {
 		
-		uint16_t vol16;
-		// volume - r=6bit+
-		vol = use_t ? t_Volume : ch->Volume;
-		
-		// *CV - r=7bit+
-		vol = (vol * ch->VolumeScale) >> 5;
-		
-		// *SV - r=7bit+
-		if( ch->Sample ) {
-			vol = (vol * samp->GlobalVolume) >> 6;
-		}
-		
-		// *IV - r=7bit+
+		// set volume:
 		if( ch->p_Instrument ) {
-			vol = (vol * ins->GlobalVolume) >> 7;
-		}
-		
-		// *GV - r=14bit+
-		vol16 = vol * ModGlobalVolume;
-		
-		// *VEV - r = 14bit+
-		vol16 = (vol16 * VEV) >> 6;
-		
-		// *NFC - r = 7bit+
-		vol = (vol16 * ch->Fadeout) >> (10+7);
-		
-		if( ch_index < 3 ) {
-			VRC6_SetVolume( ch_index, vol >> 1, ch->Sample-1 );
+			
+			uint16_t vol16;
+			// volume - r=6bit+
+			vol = use_t ? t_Volume : ch->Volume;
+			
+			// *CV - r=7bit+
+			vol = (vol * ch->VolumeScale) >> 5;
+			
+			// *SV - r=7bit+
+			if( ch->Sample ) {
+				vol = (vol * samp->GlobalVolume) >> 6;
+			}
+			
+			// *IV - r=7bit+
+			if( ch->p_Instrument ) {
+				vol = (vol * ins->GlobalVolume) >> 7;
+			}
+			
+			// *GV - r=14bit+
+			vol16 = vol * ModGlobalVolume;
+			
+			// *VEV - r = 14bit+
+			vol16 = (vol16 * VEV) >> 6;
+			
+			// *NFC - r = 7bit+
+			vol = (vol16 * ch->Fadeout) >> (10+7);
+			
+			if( ch_index < 3 ) {
+				VRC6_SetVolume( ch_index, vol >> 1, ch->Sample-1 );
+			} else {
+
+				// calculate panning
+				uint8_t p = ch->Panning << 1;
+				if( p == 128 ) p = 127;
+				if( vol == 128 ) vol = 127;
+				SPCU_VOL( ch_index-3, vol, p );
+			}
 		} else {
+			// zero volume
+			if( ch_index < 3 ) {
+				VRC6_SetVolume( ch_index, 0, 0 );
+			} else {
+				SPCU_VOL( ch_index-3, 0, 128 );
+			}
+		}
+		
+		// set pitch:
+		if( ch->Sample ) {
+			int16_t rpitch, f;
+			uint8_t oct;
+			rpitch = (use_t ? t_Pitch : ch->Pitch) + samp->PitchBase;
+			if( ch_index < 3 ) rpitch -= 768; // adjust vrc6 channels
+			oct = lut_div3[(rpitch >> 8)];
+			f = rpitch - ((uint16_t)(oct*3) << 8);
+			if( ch_index >= 3 ) { // SPC
+				uint16_t spc_pitch = spc_ftab[f] >> (8-oct);
+				SPCU_PITCH( ch_index-3, spc_pitch );
+			} else { // VRC6
+				uint16_t vrc6_pitch = vrc6_ftab[f] >> oct;
+				VRC6_SetPitch( ch_index, vrc6_pitch );
+			}
+		}
 
-			// calculate panning
-			uint8_t p = ch->Panning << 1;
-			if( p == 128 ) p = 127;
-			if( vol == 128 ) vol = 127;
-			SPCU_VOL( ch_index-3, vol, p );
+		if( ch->FlagsH & CFH_START ) {
+			ch->FlagsH &= ~CFH_START;
+			if( ch_index > 2 ) {
+
+				if( t_SampleOffset && use_t )
+					SPCU_OFS( ch_index-3, t_SampleOffset );
+				SPCU_KON( ch_index-3, vol, ch->Sample - 10 );
+			}
 		}
-	} else {
-		// zero volume
-		if( ch_index < 3 ) {
-			VRC6_SetVolume( ch_index, 0, 0 );
-		} else {
-			SPCU_VOL( ch_index-3, 0, 128 );
-		}
+
+
+		if( ch_index > 2 ) SPCU_RET();
 	}
-	
-	// set pitch:
-	if( ch->Sample ) {
-		int16_t rpitch, f;
-		uint8_t oct;
-		rpitch = (use_t ? t_Pitch : ch->Pitch) + samp->PitchBase;
-		if( ch_index < 3 ) rpitch -= 768; // adjust vrc6 channels
-		oct = lut_div3[(rpitch >> 8)];
-		f = rpitch - ((uint16_t)(oct*3) << 8);
-		if( ch_index >= 3 ) { // SPC
-			uint16_t spc_pitch = spc_ftab[f] >> (8-oct);
-			SPCU_PITCH( ch_index-3, spc_pitch );
-		} else { // VRC6
-			uint16_t vrc6_pitch = vrc6_ftab[f] >> oct;
-			VRC6_SetPitch( ch_index, vrc6_pitch );
-		}
-	}
-
-	if( ch->FlagsH & CFH_START ) {
-		ch->FlagsH &= ~CFH_START;
-		if( ch_index > 2 ) {
-
-			if( t_SampleOffset && use_t )
-				SPCU_OFS( ch_index-3, t_SampleOffset );
-			SPCU_KON( ch_index-3, vol, ch->Sample - 10 );
-		}
-	}
-
-
-	if( ch_index > 2 ) SPCU_RET();
 }
 
 
@@ -1203,7 +1206,15 @@ static void SCommand_NoteCut( uint8_t ch_index ) {
 }
 
 static void SCommand_NoteDelay( uint8_t ch_index ) {
-	//todo
+	ChannelData *ch = Channels + ch_index;
+	uint8_t p = ch->p_Parameter & 0xF;
+	if( p != 0 ) {
+		if( ModTick < p ) {
+			ch->FlagsH |= CFH_DELAY;
+		} else {
+			ch->FlagsH &= ~CFH_DELAY;
+		}
+	}
 }
 
 static void SCommand_PatternDelay( uint8_t ch_index ) {
