@@ -17,7 +17,7 @@
 #include "emu_spc.h"
 #include "spcunit.h"
 
-const int amp_spc = 256;
+const int amp_spc = 128;
 const int amp_vrc6 = 256;
 
 static inline int saturate_i16( int value ) {

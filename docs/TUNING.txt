@@ -5,18 +5,20 @@ LOWEST NOTE  = C-0 = 0
 MIDDLE C     = C-5 = 60
 HIGHEST NOTE = B-8 = 107
 
-vrc6 note range : A-0 -> B-8
+vrc6 note range : A#0 -> B-8
 spc note range  : C-0 -> B-8
 
 SPC MIDDLE C PITCH = 1070.464
-VRC6 MIDDLE C PERIOD = 214.01084864283151978954920483072
+VRC6 MIDDLE C PERIOD = 244.88819801506636374506755948822
 
 note:
 vrc6 will lose frequency precision in the higher pitch range
 spc will lose precision in the lower range
 
+VRC6_CLK = 2048000.0
+
 spc output freq = pitch_height * 7.8125
-vrc6 output freq = 1789772.7272 / P
+vrc6 output freq = VRC6_CLK / P
 
 vrc6 pulse is 16 samples wide
   32 in template module
@@ -60,5 +62,5 @@ VRC6:
 
 PERIOD = vrc6_ftab[f] >> oct
 
-vrc6_ftab[0..767] = round( (1789772.7272/8363) * 2^5 / 2^(i/768) )
+vrc6_ftab[0..767] = round( (VRC6_CLK/8363) * 2^5 / 2^(i/768) )
 // (octave 0)
