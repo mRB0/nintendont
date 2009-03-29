@@ -198,6 +198,14 @@ int main( int argc, char *argv[] ) {
 		SPCU_KON( 0, 0x7F, 0 );
 
 		SPCU_RET();*/	
+
+		SPCU_EVOL( 90, -90 );
+		SPCU_COEF( 0, 127 );
+		SPCU_EFB( 80 );
+		SPCU_EDL( 2 );
+		SPCU_EON( 0x1 );
+		SPCU_ECEN(1);
+		SPCU_RET();
 	}
 	
 	Player_Start(0);
