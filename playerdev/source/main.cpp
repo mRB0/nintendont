@@ -149,7 +149,7 @@ int main( int argc, char *argv[] ) {
 	sp.deviceId = audio.getDefaultOutputDevice();
 	sp.nChannels = 2;
 	sp.firstChannel = 0;
-	audio_rate = 32000;
+	audio_rate = 9000;
 	uint32_t frames = 1024;
 	
 	audio.openStream(
