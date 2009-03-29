@@ -49,7 +49,7 @@ namespace IO {
 
 	u32 File::Read32() {
 		u32 a = Read16();
-		a |= Read16() << 8;
+		a |= Read16() << 16;
 		return a;
 	}
 

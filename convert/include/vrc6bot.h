@@ -8,6 +8,7 @@ namespace VRC6Bot {
 	typedef struct { // IBANK
 
 		u8	y;
+		u8	duration;
 		s16 delta;
 	} EnvelopeNode;
 

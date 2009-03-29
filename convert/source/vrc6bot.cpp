@@ -139,7 +139,7 @@ namespace VRC6Bot {
 	
 	Pattern::Pattern( ITLoader::Pattern &source ) {
 		Rows = (u8)(source.Rows-1);
-		DataLength = source.DataLength;
+		DataLength = source.DataLength + source.Rows ;
 
 		// our data will be <rows> bytes larger
 		Data = new u8[ DataLength + source.Rows ];
@@ -153,9 +153,9 @@ namespace VRC6Bot {
 
 		u8	spc_hints;
 
-		u8	p_maskvar[8];
+		u8	p_maskvar[11];
 
-		for( row = 0; row < source.Rows-1; ) {
+		for( row = 0; row < source.Rows; ) {
 			spc_hints = 0;
 			u8 chvar = *read++;
 			row_buffer[rowsize++] = chvar;
@@ -411,6 +411,7 @@ namespace VRC6Bot {
 			nodes[i].y = source.Nodes[i].y;
 			if( i != Length-1 ) {
 				int duration = source.Nodes[i+1].x - source.Nodes[i].x;
+				nodes[i].duration = duration - 1;
 				nodes[i].delta = ((source.Nodes[i+1].y - source.Nodes[i].y) * 256 + duration/2) / duration;
 			} else {
 				nodes[i].delta = 0;
@@ -433,6 +434,7 @@ namespace VRC6Bot {
 		
 		for( int i = 0; i < Length; i++ ) {
 			file.Write8( nodes[i].y );
+			file.Write8( nodes[i].duration );
 			file.Write16( nodes[i].delta );
 		}
 	}

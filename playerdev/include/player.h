@@ -6,7 +6,7 @@
 #define __PLAYER_H
 
 //-------------------------------------------------------------------------------
-typedef struct t_ChannelData {
+typedef struct {
 //-------------------------------------------------------------------------------
 	uint8_t		Note;			// note index
 	uint16_t	Pitch;			// 7.6 note value
@@ -27,8 +27,10 @@ typedef struct t_ChannelData {
 	
 	uint16_t	VE_Y;			// volume envelope
 	uint8_t		VE_Node;		//
+	uint8_t		VE_Tick;		//
 	uint16_t	PE_Y;			//
 	uint8_t		PE_Node;		//
+	uint8_t		PE_Tick;		//
 	
 	uint16_t	Fadeout;		// a fadeout level
 	
@@ -45,7 +47,8 @@ enum {
 
 enum {
 	CFH_KEYON	=1,
-	CFH_FADE	=2
+	CFH_FADE	=2,
+	CFH_START	=4
 };
 
 #ifdef __cplusplus
