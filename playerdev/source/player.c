@@ -334,9 +334,9 @@ void Player_Start( uint8_t ModuleIndex ) {
 	
 	uint8_t i;
 
-	SPCU_EVOL(0,0);
-	SPCU_ECEN(0);
-	SPCU_RESET();
+	//SPCU_EVOL(0,0); *******************************************************######
+	//SPCU_ECEN(0);
+	//SPCU_RESET();
 
 	Module = (rom IModuleData*)(IBank + ReadEx16( EBANK_IMOD_TABLE + ModuleIndex*2 ));
 	SampleTable = (uint16_t*)(ModuleAddr + IMOD_TABLE_START);
@@ -377,16 +377,16 @@ void Player_Start( uint8_t ModuleIndex ) {
 	
 	{ // setup SPC echo
 		uint8_t edl = ReadEx8( EModAddress + EMD_EchoDelay );
-		SPCU_EDL( edl );
-		SPCU_EFB( ReadEx8( EModAddress + EMD_EchoFeedback ) );
-		for( i = 0; i < 8; i++ ) {
-			SPCU_COEF( i, ReadEx8( EModAddress + EMD_EchoFirCoefficients + i ) );
-		}
-		if( edl ) {
-			SPCU_EVOL(	ReadEx8( EModAddress + EMD_EchoVolumeLeft ),
-						ReadEx8( EModAddress + EMD_EchoVolumeRight ) );
-			SPCU_ECEN( 1 );
-		}
+//		SPCU_EDL( edl );
+//		SPCU_EFB( ReadEx8( EModAddress + EMD_EchoFeedback ) );
+//		for( i = 0; i < 8; i++ ) {
+//			SPCU_COEF( i, ReadEx8( EModAddress + EMD_EchoFirCoefficients + i ) );
+//		}
+//		if( edl ) {
+//			SPCU_EVOL(	ReadEx8( EModAddress + EMD_EchoVolumeLeft ),
+//						ReadEx8( EModAddress + EMD_EchoVolumeRight ) );
+//			SPCU_ECEN( 1 );
+//		}
 	}
 
 	

@@ -45,13 +45,20 @@ static uint8_t VOICE_PANNING[8];
 static uint16_t VOICE_PITCH[8];
 static uint8_t VOICE_OFFSET[8];
 
+static int ECHO_WRITE;
+
 static int mode;
+
+static inline int clamp16( int v ) {
+	if( v < -32768 ) v = -32768;
+	v = v > 32767 ? 32767: v;
+	return v;
+}
 
 enum {
 	MODE_IDLE,
 	MODE_TRANSFER,
-
-
+	
 	TRANSFER_ADDRESS_START = 0x600
 };
 
@@ -86,7 +93,7 @@ public:
 	void SET_PITCH( int );
 	void SET_GAIN( int );
 
-	void MIX( int32_t*, int );
+	void MIX( int32_t*, int, bool );
 	void INIT() {
 		mute = true;
 	}
@@ -102,6 +109,7 @@ int BUFFER_READ;
 int BUFFER_REMAINING;
 int BUFFER_SAMPLER; // 16.16 fixed
 int32_t MIXING_BUFFER[BUFFER_SIZE*2];
+int32_t	ECHO_BUFFER[BUFFER_SIZE*2];
 
 extern "C" {
 	
@@ -141,7 +149,10 @@ void SPCEMU_WRITEPORT( int index, uint8_t value ) {
 			case 0x03:	// EDL
 				
 				EDL = PORTS_IN[3];
-				ESA = (65536 - 0x100 * EDL) & 0xFFFF;
+				ESA = (65536 - (0x100 * EDL*8)) & 0xFFFF;
+
+				// (actual spc delays until ECHO_WRITE loops)
+				ECHO_WRITE = ESA;
 				if( ESA == 0 ) ESA = 65536 - 0x100;
 				break;
 			case 0x04:	// EFB
@@ -418,7 +429,7 @@ void DSPVOICE::SET_GAIN( int gain ) {
 	GAIN = gain;
 }
 
-void DSPVOICE::MIX( int32_t *target, int length ) {
+void DSPVOICE::MIX( int32_t *target, int length, bool eon ) {
 	if( mute )
 		return;
 	for( int i = 0; i < length; i++ ) {
@@ -434,6 +445,11 @@ void DSPVOICE::MIX( int32_t *target, int length ) {
 		
 		target[i*2] += SL;
 		target[i*2+1] += SR;
+
+		if( eon ) {
+			ECHO_BUFFER[i*2] += SL;
+			ECHO_BUFFER[i*2+1] += SR;
+		}
 		
 		if( sampler >= (16 << 12) ) {
 			if( lastblock ) {
@@ -493,24 +509,56 @@ void PROCESS_SOUND( int samples ) {
 	// clear mixing buffer
 	for( int i = 0; i < samples*2; i++ ) {
 		MIXING_BUFFER[i] = 0;
+		ECHO_BUFFER[i] = 0;
 	}
 	
 	for( int i = 0; i < 8; i++ ) {
-		VOICES[i].MIX( MIXING_BUFFER, samples );
+		VOICES[i].MIX( MIXING_BUFFER, samples, !!(EON & (1<<i)) );
 	}
 
+	// clamp data
 	for( int i = 0; i < samples; i++ ) {
 		int S = MIXING_BUFFER[i*2];
-		S = (S * MVOL) >> 7;
 		S = S < -32768 ? -32768 : S;
 		S = S >  32767 ?  32767 : S;
+		MIXING_BUFFER[i*2] = S;
+
+		S = MIXING_BUFFER[i*2+1];
+		S = S < -32768 ? -32768 : S;
+		S = S >  32767 ?  32767 : S;
+		MIXING_BUFFER[i*2+1] = S;
+	}
+
+	int E=0;
+	for( int i = 0; i < samples; i++ ) {
+		int S = MIXING_BUFFER[i*2];
+		if( S != 0 ) {
+			S = S;
+		}
+		if( EnableEcho ) {
+			E = (*((int16_t*)(memory+ECHO_WRITE)));
+			(*((int16_t*)(memory+ECHO_WRITE))) = clamp16((((*((int16_t*)(memory+ECHO_WRITE))) * EFB) >> 7) + ECHO_BUFFER[i*2]);
+			ECHO_WRITE += 2;
+			if( ECHO_WRITE >= ESA + EDL * 2048 ) {
+				ECHO_WRITE = ESA;
+			}
+		}
+		S = (S * MVOL) >> 7;
+		S = clamp16(S + ((E * EVOL)>>7));
 		
 		BUFFER_L[BUFFER_WRITE] = (int16_t)S;
 		
 		S = MIXING_BUFFER[i*2+1];
+
+		if( EnableEcho ) {
+			E = (*((int16_t*)(memory+ECHO_WRITE)));
+			(*((int16_t*)(memory+ECHO_WRITE))) = clamp16((((*((int16_t*)(memory+ECHO_WRITE))) * EFB) >> 7) + ECHO_BUFFER[i*2+1]);
+			ECHO_WRITE += 2;
+			if( ECHO_WRITE >= ESA + EDL * 2048 ) ECHO_WRITE = ESA;
+		}
+
 		S = (S * MVOLR) >> 7;
-		S = S < -32768 ? -32768 : S;
-		S = S >  32767 ?  32767 : S;
+		S = clamp16(S + ((E * EVOLR)>>7));
 		
 		BUFFER_R[BUFFER_WRITE++] = (int16_t)S;
 		BUFFER_WRITE &= BUFFER_SIZE-1;
@@ -544,14 +592,9 @@ static void refill_buffer( int desired ) {
 	int amount_filled = desired;
 	if( amount_filled > srib )
 		amount_filled = srib;
-	//	not_satisfied = samples - srib;
-	//} else {
-//		not_satisfied = 0;
-//	}
 	
 	BUFFER_REMAINING += amount_filled << 16;
 	PROCESS_SOUND( amount_filled );
-//	return not_satisfied;
 }
 
 void SPCEMU_RUN( int frames, int16_t *buffer, double framerate ) {
