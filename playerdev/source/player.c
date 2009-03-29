@@ -60,6 +60,12 @@ typedef struct {
 	uint8_t P_LoopEnd;
 } Instrument;
 
+typedef struct {
+	uint8_t y;
+	uint8_t duration;
+	int16_t delta;
+} EnvelopeNode;
+
 //---------------------------------------------------------------------
 enum {
 //---------------------------------------------------------------------
@@ -85,7 +91,9 @@ enum {
 	EBANK_EMOD_TABLE =0x200,
 	EBANK_SAMPLE_TABLE =0x400,
 
-	IMOD_TABLE_START =6
+	IMOD_TABLE_START =6,
+
+	INS_ENVELOPES	=0x0E
 };
 
 enum {
@@ -139,9 +147,9 @@ static uint8_t t_Panning;
 static uint16_t t_Pitch;
 
 static void UpdateChannels();
-static void UpdateChannel( uint8_t );
+static void UpdateChannel( uint8_t, uint8_t );
 static void ProcessVolumeCommand( ChannelData *ch );
-static void ProcessCommand( ChannelData *ch );
+static void ProcessCommand( uint8_t );
 static void ProcessChannelAudio( uint8_t ch_index, uint8_t use_t );
 static void StartNewNote( ChannelData *ch );
 static void ReadPattern();
@@ -217,7 +225,8 @@ void Player_ChangePosition( uint8_t NewPosition ) {
 	}
 
 	if( patt == 255 ) {
-		// STOP PLAYBACK!!!!!!!!!
+		ModPosition = 0; //TODO: STOP PLAYBACK!!!!!!!!!
+		patt = ReadEx8( SequenceAddress + ModPosition );
 	}
 	
 	// get pattern address
@@ -262,7 +271,7 @@ void Player_StopTimer() {
  *************************************************************************/
 void Player_SetTempo( uint8_t NewTempo ) {
 	ModTempo = NewTempo;
-	TimerReload = timer_tab[NewTempo];
+	TimerReload = timer_tab[NewTempo-32];
 
 	if( TimerActive ) {
 
@@ -278,7 +287,7 @@ void Player_SetTempo( uint8_t NewTempo ) {
 //
 void Player_LoadSample( uint16_t index ) {
 	uint24_t address;
-	uint16_t length;
+	int24_t length;
 	uint16_t loop;
 	address = ReadEx16(EBANK_SAMPLE_TABLE + (index << 1)) << 6;
 	
@@ -322,7 +331,7 @@ void Player_Start( uint8_t ModuleIndex ) {
 	ModActive = 1;
 	
 	Player_SetTempo( ReadEx8( EModAddress + EMD_InitialTempo ) );
-	ModSpeed = 1;//ReadEx8( EModAddress + EMD_InitialSpeed );
+	ModSpeed = ReadEx8( EModAddress + EMD_InitialSpeed );
 	ModGlobalVolume = ReadEx8( EModAddress + EMD_InitialVolume );
 	
 	for( i = 0; i < 11; i++ ) {
@@ -366,6 +375,8 @@ void Player_Start( uint8_t ModuleIndex ) {
 
 	
 	Player_ChangePosition( 0 );
+
+	SPCU_RET();
 }
 
 /*************************************************************************
@@ -383,6 +394,9 @@ void Player_SetIBank( rom uint8_t *InternalBankAddress ) {
  * Update player routine (call every tick)
  *************************************************************************/
 void Player_OnTick() {
+
+	// reset timer
+	WriteTimer0( TimerReload );
 
 	if( ModTick == 0 ) {
 		ReadPattern();
@@ -405,90 +419,99 @@ void Player_OnTick() {
 static void UpdateChannels() {
 	uint8_t ch;
 	for( ch = 0; ch < 11; ch++ ) {
-		if( PatternUpdateFlags & (1<<ch) ) {
-			UpdateChannel( ch );
-		}
+		//if( ) {
+		UpdateChannel( ch, !!(PatternUpdateFlags & (1<<ch)) );
+		//}
 	}
 }
 
-static void UpdateChannel( uint8_t ch_index ) {
+static void UpdateChannel( uint8_t ch_index, uint8_t new_data ) {
 	ChannelData *ch = Channels + ch_index;
-	if( ModTick == 0 ) {
-		if( ch->Flags & CF_NOTE ) {
-			
-			if( ch->p_Note == 254 ) {
-				// note cut
-			} else if( ch->p_Note == 255 ) {
-				// note off
-			} else {
-				uint8_t glissando = 0;
-				if( ch->Flags & CF_CMD ) {
-					if( ch->p_Command == 7 ) {
-						// glissando, cancel note
-						glissando = 1;
+
+	if( new_data ) {
+		if( ModTick == 0 ) {
+			if( ch->Flags & CF_NOTE ) {
+				
+				if( ch->p_Note == 254 ) {
+					// note cut
+				} else if( ch->p_Note == 255 ) {
+					// note off
+				} else {
+					uint8_t glissando = 0;
+					if( ch->Flags & CF_CMD ) {
+						if( ch->p_Command == 7 ) {
+							// glissando, cancel note
+							glissando = 1;
+						}
+					}
+					
+					if( glissando ) {
+						
+					} else {
+						StartNewNote( ch );
 					}
 				}
 				
-				if( glissando ) {
-					
-				} else {
-					StartNewNote( ch );
-				}
-			}
-			
-			if( ch->Flags & CF_INSTR ) {
-				if( ch->p_Instrument ) {
-					rom Instrument* ins = (rom Instrument*)(ModuleAddr + InstrumentTable[ch->p_Instrument-1]);
-					if( !(ins->SetPan & 128) ) {
-						ch->Panning = ins->SetPan;
+				if( ch->Flags & CF_INSTR ) {
+					if( ch->p_Instrument ) {
+						rom Instrument* ins = (rom Instrument*)(ModuleAddr + InstrumentTable[ch->p_Instrument-1]);
+						if( !(ins->SetPan & 128) ) {
+							ch->Panning = ins->SetPan;
+						}
 					}
-				}
 
-				if( ch->Sample ) {
-					rom Sample *samp = (rom Sample*)(ModuleAddr + SampleTable[ch->Sample-1]);
-					ch->Volume = samp->DefaultVolume;
-					if( !(samp->SetPan & 128) ) {
-						ch->Panning = samp->SetPan;
+					if( ch->Sample ) {
+						rom Sample *samp = (rom Sample*)(ModuleAddr + SampleTable[ch->Sample-1]);
+						ch->Volume = samp->DefaultVolume;
+						if( !(samp->SetPan & 128) ) {
+							ch->Panning = samp->SetPan;
+						}
 					}
 				}
-			}
-			
-			if( ch->Flags & (CF_NOTE|CF_INSTR) ) {
-				ResetVolume( ch );
-			}
-			
-			if( ch->Flags & (CF_NOTE) ) {
-				if( ch->p_Note == 255 ) {
-					ch->FlagsH &= ~CFH_KEYON;
-				} else if( ch->p_Note == 254 ) {
-					ch->Volume = 0;
+				
+				if( ch->Flags & (CF_NOTE|CF_INSTR) ) {
+					ResetVolume( ch );
 				}
+				
+				if( ch->Flags & (CF_NOTE) ) {
+					if( ch->p_Note == 255 ) {
+						ch->FlagsH &= ~CFH_KEYON;
+					} else if( ch->p_Note == 254 ) {
+						ch->Volume = 0;
+					}
+				}
+				ch->Flags &= ~CF_NOTE;
 			}
-			ch->Flags &= ~CF_NOTE;
 		}
+		
+		if( ch->Flags & CF_VCMD ) {
+			ProcessVolumeCommand( ch );
+		}
+		
+		// process commands.....
+		t_Pitch = ch->Pitch;
+		t_SampleOffset = 0;
+		t_Volume = ch->Volume;
+		t_Panning = ch->Panning;
+		
+		if( ch->Flags & CF_CMD ) {
+			ProcessCommand( ch_index );
+		}
+		ProcessChannelAudio( ch_index, 1 );
+	} else {
+		ProcessChannelAudio( ch_index, 0 );
 	}
 	
-	if( ch->Flags & CF_VCMD ) {
-		ProcessVolumeCommand( ch );
-	}
-	
-	// process commands.....
-	t_Pitch = ch->Pitch;
-	t_SampleOffset = 0;
-	t_Volume = ch->Volume;
-	t_Panning = ch->Panning;
-	
-	if( ch->Flags & CF_CMD ) {
-		ProcessCommand( ch );
-	}
-	
-	ProcessChannelAudio( ch_index, 1 );
 }
 
 static void ResetVolume( ChannelData *ch ) {
 	ch->Fadeout = 1024;
 
-	//TODO: reset envelopes
+	// reset envelopes
+	ch->VE_Node = 0;
+	ch->VE_Tick = 0;
+	ch->PE_Node = 0;
+	ch->PE_Tick = 0;
 
 	// set keyon, clear fade
 	ch->FlagsH |= CFH_KEYON;
@@ -523,12 +546,121 @@ static void ProcessVolumeCommand( ChannelData *ch ) {
 	}
 }
 
-static void ProcessCommand( ChannelData *ch ) {
-	// ...............
+typedef void (*command_routine)(uint8_t);
+
+static void Command_SetSpeed( uint8_t ch_index );
+static void Command_PatternJump( uint8_t ch_index );
+static void Command_PatternBreak( uint8_t ch_index );
+static void Command_VolumeSlide( uint8_t ch_index );
+static void Command_PitchSlideDown( uint8_t ch_index );
+static void Command_PitchSlideUp( uint8_t ch_index );
+static void Command_Glissando( uint8_t ch_index );
+static void Command_Vibrato( uint8_t ch_index );
+static void Command_Tremor( uint8_t ch_index );
+static void Command_Arpeggio( uint8_t ch_index );
+static void Command_VibratoVolumeSlide( uint8_t ch_index );
+static void Command_GlissandoVolumeSlide( uint8_t ch_index );
+static void Command_ChannelVolume( uint8_t ch_index );
+static void Command_ChannelVolumeSlide( uint8_t ch_index );
+static void Command_SampleOffset( uint8_t ch_index );
+static void Command_PanningSlide( uint8_t ch_index );
+static void Command_RetriggerNote( uint8_t ch_index );
+static void Command_Tremolo( uint8_t ch_index );
+static void Command_Extended( uint8_t ch_index );
+static void Command_Tempo( uint8_t ch_index );
+static void Command_FineVibrato( uint8_t ch_index );
+static void Command_GlobalVolume( uint8_t ch_index );
+static void Command_GlobalVolumeSlide( uint8_t ch_index );
+static void Command_SetPanning( uint8_t ch_index );
+static void Command_Panbrello( uint8_t ch_index );
+static void Command_Zxx( uint8_t ch_index );
+
+
+static command_routine command_list[] = {
+	Command_SetSpeed,			// Axx
+	Command_PatternJump,		// Bxx
+	Command_PatternBreak,		// Cxx
+	Command_VolumeSlide,		// Dxx
+	Command_PitchSlideDown,		// Exx
+	Command_PitchSlideUp,		// Fxx
+	Command_Glissando,			// Gxx
+	Command_Vibrato,			// Hxx
+	Command_Tremor,				// Ixx
+	Command_Arpeggio,				// Jxx
+	Command_VibratoVolumeSlide,		// Kxx
+	Command_GlissandoVolumeSlide,	// Lxx
+	Command_ChannelVolume,			// Mxx
+	Command_ChannelVolumeSlide,		// Nxx
+	Command_SampleOffset,			// Oxx
+	Command_PanningSlide,		// Pxx
+	Command_RetriggerNote,		// Qxx
+	Command_Tremolo,			// Rxx
+	Command_Extended,			// Sxx
+	Command_Tempo,				// Txx
+	Command_FineVibrato,		// Uxx
+	Command_GlobalVolume,		// Vxx
+	Command_GlobalVolumeSlide,	// Wxx
+	Command_SetPanning,			// Xxx
+	Command_Panbrello,			// Yxx
+	Command_Zxx					// Zxx
+
+};
+
+uint8_t pattern_command_memory[11*8];
+
+const rom uint8_t command_memory_map[] = {
+	   0,  0,  0,  1,  2,  2,  3,  7,  0,
+	// A   B   C   D   E   F   G   H   I
+	   4,  1,  1,  0,  1,  5,  1,  8,  7,
+	// J   K   L   M   N   O   P   Q   R
+	   6,  0,  7,  0,  1,  0,  7,  0
+	// S   T   U   V   W   X   Y   Z
+};
+
+static void ProcessCommandMemory( uint8_t ch_index ) {
+	ChannelData *ch = Channels + ch_index;
+	uint8_t p = ch->p_Parameter;
+	uint8_t mi = command_memory_map[ ch->p_Command - 1 ];
+	
+	if( mi >= 7 ) {
+		
+		// double
+		if( (p & 0xF) == 0 ) {
+			p |= pattern_command_memory[(ch_index<<3) + mi - 1] & 0xF;
+		} else {
+			pattern_command_memory[(ch_index<<3) + mi - 1] =
+				(pattern_command_memory[(ch_index<<3) + mi - 1] & 0xF0) | (p & 0xF);
+		}
+		
+		if( (p & 0xF0) == 0 ) {
+			p |= pattern_command_memory[(ch_index<<3) + mi - 1] & 0xF0;
+		} else {
+			pattern_command_memory[(ch_index<<3) + mi - 1] =
+				(pattern_command_memory[(ch_index<<3) + mi - 1] & 0x0F) | (p & 0xF0);
+		}
+	} else if( mi >= 1 ) {
+		// single
+		if( p == 0 ) {
+			p = pattern_command_memory[(ch_index<<3) + mi - 1];
+		} else {
+			pattern_command_memory[(ch_index<<3) + mi - 1] = p;
+		}
+	}
+	ch->p_Parameter = p;
+}
+
+static void ProcessCommand( uint8_t ch_index ) {
+	ChannelData *ch = Channels + ch_index;
+	if( ch->p_Command >= 1 ) {
+
+		if( ModTick == 0 )
+			ProcessCommandMemory( ch_index );
+		command_list[ch->p_Command-1]( ch_index );
+	}
 }
 
 /*******************************************************************
- * Get new pitch and 
+ * Get new pitch and ...
  *
  *
  *******************************************************************/
@@ -540,8 +672,10 @@ static void StartNewNote( ChannelData *ch ) {
 	// get sample# (if instrument exists)
 	if( ch->p_Instrument ) {
 		rom Instrument *ins = (rom Instrument*)(ModuleAddr + InstrumentTable[ch->p_Instrument-1]);
-		ch->Sample = ins->SampleIndex;
+		ch->Sample = ins->SampleIndex + 1;
 	}
+
+	ch->FlagsH |= CFH_START;
 }
 
 /********************************************************************
@@ -557,18 +691,70 @@ static void ProcessChannelAudio( uint8_t ch_index, uint8_t use_t ) {
 	Sample *samp;
 	Instrument *ins;
 	uint8_t VEV, PEV;
+	uint8_t vol = 0;
 	if( ch->Sample ) samp = (rom Sample*)(ModuleAddr + SampleTable[ch->Sample-1]);
 	if( ch->p_Instrument ) ins = (rom Instrument*)(ModuleAddr + InstrumentTable[ch->p_Instrument-1]);
 	
-	VEV = 64;
-	//TODO: process envelopes
+	if( ch->p_Instrument ) {
+		// process envelopes
+		if( ins->V_Length ) {
+			EnvelopeNode *env = (EnvelopeNode*)(((uint8_t*)ins) + INS_ENVELOPES);
+			env += ch->VE_Node;
+			// Process volume envelope
+			if( ch->VE_Tick == 0 ) {
+				// tick0 processing
+				ch->VE_Y = env->y << 8;
+				
+			} else {
+				ch->VE_Y += *(((int16_t*)(env))+1);
+
+				// clamp value under zero (unsigned overflow)
+				if( ch->VE_Y >= 49152 ) ch->VE_Y = 0;
+
+				// clamp value above 64.0
+				if( ch->VE_Y > 16384 ) ch->VE_Y = 16384;
+			}
+
+			VEV = ch->VE_Y >> 8;
+			
+			ch->VE_Tick++;
+			if( ch->VE_Tick >= (env->duration+1) ) {
+				ch->VE_Tick = 0;
+				
+				
+				if( ch->VE_Node == ins->V_LoopEnd ) {
+					// loop
+					ch->VE_Node = ins->V_LoopStart;
+					ch->VE_Tick = 0;
+
+					if( !(ch->FlagsH & CFH_KEYON) ) {
+						ch->FlagsH |= CFH_FADE;
+					}
+				} else if( ch->VE_Node == (ins->V_Length - 1) ) {
+					// final node...
+					// do something?
+					ch->VE_Tick = 0;
+
+					if( !(ch->FlagsH & CFH_KEYON) ) {
+						ch->FlagsH |= CFH_FADE;
+					}
+				} else {
+					ch->VE_Node++;
+				}
+			}
+		} else {
+			VEV = 64;
+		}
+	} else {
+		VEV = 64;
+	}
 	
 	// set volume:
 	if( ch->p_Instrument ) {
 		
-		// volume - r=6bit+
-		uint8_t vol = use_t ? t_Volume : ch->Volume;
 		uint16_t vol16;
+		// volume - r=6bit+
+		vol = use_t ? t_Volume : ch->Volume;
 		
 		// *CV - r=7bit+
 		vol = (vol * ch->VolumeScale) >> 5;
@@ -580,7 +766,7 @@ static void ProcessChannelAudio( uint8_t ch_index, uint8_t use_t ) {
 		
 		// *IV - r=7bit+
 		if( ch->p_Instrument ) {
-			vol = (vol * samp->GlobalVolume) >> 6;
+			vol = (vol * ins->GlobalVolume) >> 7;
 		}
 		
 		// *GV - r=14bit+
@@ -616,6 +802,7 @@ static void ProcessChannelAudio( uint8_t ch_index, uint8_t use_t ) {
 		int16_t rpitch, f;
 		uint8_t oct;
 		rpitch = (use_t ? t_Pitch : ch->Pitch) + samp->PitchBase;
+		if( ch_index < 3 ) rpitch -= 768; // adjust vrc6 channels
 		oct = lut_div3[(rpitch >> 8)];
 		f = rpitch - ((uint16_t)(oct*3) << 8);
 		if( ch_index >= 3 ) { // SPC
@@ -626,6 +813,17 @@ static void ProcessChannelAudio( uint8_t ch_index, uint8_t use_t ) {
 			VRC6_SetPitch( ch_index, vrc6_pitch );
 		}
 	}
+
+	if( ch->FlagsH & CFH_START ) {
+		ch->FlagsH &= ~CFH_START;
+		if( ch_index > 2 ) {
+
+			if( t_SampleOffset && use_t )
+				SPCU_OFS( ch_index-3, t_SampleOffset );
+			SPCU_KON( ch_index-3, vol, ch->Sample - 10 );
+		}
+	}
+
 
 	if( ch_index > 2 ) SPCU_RET();
 }
@@ -680,3 +878,179 @@ static void ReadPattern() {
 
 	PatternAddress++;
 }
+
+/************************************************************
+ *
+ * Pattern Commands
+ *
+ ************************************************************/
+
+static uint8_t DoVolumeSlide( uint8_t base, uint8_t param, uint8_t max ) {
+	uint8_t a = param>>4, b = param&0xF;
+	if( b == 0 ) { // Dx0
+		if( ModTick != 0 || (a == 0xF) ) {
+			base += a;
+			if( base > max ) base = 0;
+		}
+	} else if( a == 0 ) { // D0x
+		if( ModTick != 0 || (b == 0xF) ) {
+			base += b;
+			if( base > max ) base = max;
+		}
+	} else if( b == 0xF ) { // DxF
+		if( ModTick == 0 ) {
+			base -= a;
+			if( base > max ) base = 0;
+		}
+	} else if( a == 0xF ) { // DFx
+		if( ModTick == 0 ) {
+			base += a;
+			if( base > max ) base = max;
+		}
+	}
+	return base;
+}
+
+static void Command_SetSpeed( uint8_t ch_index ) {
+	if( ModTick == 0 ) {
+		if( Channels[ch_index].p_Parameter != 0 )
+			ModSpeed = Channels[ch_index].p_Parameter;
+	}
+}
+
+static void Command_PatternJump( uint8_t ch_index ) {
+	
+}
+
+static void Command_PatternBreak( uint8_t ch_index ) {
+	
+}
+
+static void Command_VolumeSlide( uint8_t ch_index ) {
+	ChannelData *ch = Channels+ch_index;
+	ch->Volume = DoVolumeSlide( ch->Volume, ch->p_Parameter, 64 );
+}
+
+static void Command_PitchSlideDown( uint8_t ch_index ) {
+	ChannelData *ch = Channels+ch_index;
+	uint8_t p = ch->p_Parameter;
+	if( p >= 0xF0 ) { // fine slide
+		if( ModTick == 0 ) {
+			ch->Pitch -= (p & 0xF) << 2;
+		}
+	} else if( p >= 0xE0 ) { // extra fine slide
+		if( ModTick != 0 ) {
+			ch->Pitch -= (p & 0xF);
+		}
+	} else {
+		if( ModTick != 0 ) {
+			ch->Pitch -= p << 2;
+		}
+	}
+	if( ch->Pitch > 16384 ) ch->Pitch = 0;
+	t_Pitch = ch->Pitch;
+}
+
+static void Command_PitchSlideUp( uint8_t ch_index ) {
+	ChannelData *ch = Channels+ch_index;
+	uint8_t p = ch->p_Parameter;
+	if( p >= 0xF0 ) { // fine slide
+		if( ModTick == 0 ) {
+			ch->Pitch += (p & 0xF) << 2;
+		}
+	} else if( p >= 0xE0 ) { // extra fine slide
+		if( ModTick != 0 ) {
+			ch->Pitch += (p & 0xF);
+		}
+	} else {
+		if( ModTick != 0 ) {
+			ch->Pitch += p << 2;
+		}
+	}
+	if( ch->Pitch > (107<<6) ) ch->Pitch = 107<<6;
+	t_Pitch = ch->Pitch;
+}
+
+static void Command_Glissando( uint8_t ch_index ) {
+
+	if( ModTick != 0 ) {
+		ChannelData *ch = Channels+ch_index;
+		uint8_t p = ch->p_Parameter;
+
+		uint16_t target_pitch = ch->p_Note << 6;
+
+		if( ch->Pitch < target_pitch ) {
+			ch->Pitch += ch->p_Parameter << 2;
+			if( ch->Pitch > target_pitch ) {
+				ch->Pitch = target_pitch;
+			}
+		} else if( ch->Pitch > target_pitch ) {
+			ch->Pitch -= ch->p_Parameter << 2;
+			if( ch->Pitch > 16384 ) ch->Pitch = 0;
+			if( ch->Pitch < target_pitch ) ch->Pitch = target_pitch;
+		}
+
+		t_Pitch = ch->Pitch;
+	}
+}
+
+static void Command_Vibrato( uint8_t ch_index ) {
+	
+}
+
+static void Command_Tremor( uint8_t ch_index ) {
+}
+
+static void Command_Arpeggio( uint8_t ch_index ) {
+}
+
+static void Command_VibratoVolumeSlide( uint8_t ch_index ) {
+}
+
+static void Command_GlissandoVolumeSlide( uint8_t ch_index ) {
+}
+
+static void Command_ChannelVolume( uint8_t ch_index ) {
+}
+
+static void Command_ChannelVolumeSlide( uint8_t ch_index ) {
+}
+
+static void Command_SampleOffset( uint8_t ch_index ) {
+	if( ModTick == 0 )
+		t_SampleOffset = Channels[ch_index].p_Parameter;
+}
+
+static void Command_PanningSlide( uint8_t ch_index ) {
+}
+
+static void Command_RetriggerNote( uint8_t ch_index ) {
+}
+
+static void Command_Tremolo( uint8_t ch_index ) {
+}
+
+static void Command_Extended( uint8_t ch_index ) {
+}
+
+static void Command_Tempo( uint8_t ch_index ) {
+}
+
+static void Command_FineVibrato( uint8_t ch_index ) {
+}
+
+static void Command_GlobalVolume( uint8_t ch_index ) {
+}
+
+static void Command_GlobalVolumeSlide( uint8_t ch_index ) {
+}
+
+static void Command_SetPanning( uint8_t ch_index ) {
+}
+
+static void Command_Panbrello( uint8_t ch_index ) {
+}
+
+static void Command_Zxx( uint8_t ch_index ) {
+}
+

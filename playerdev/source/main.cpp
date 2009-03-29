@@ -72,7 +72,7 @@ int AudioCallback( void *outputBuffer, void *,
 			}
 			
 			if( updatelen ) {
-				SPCEMU_RUN( updatelen, spc_buffer + writepos, audio_rate );
+				SPCEMU_RUN( updatelen, spc_buffer + writepos*2, audio_rate );
 				VRC6EMU_RUN( updatelen, vrc6_buffer + writepos, audio_rate );
 				frames_until_next -= updatelen;
 				writepos += updatelen;
@@ -119,6 +119,9 @@ int main( int argc, char *argv[] ) {
 	int a = 5;
 	if( argc < 3 )
 		printf( "USAGE: VRC6BOT INPUT.IBANK INPUT.EBANK\n" );
+
+	argv[1] = "../convert/test.ibank";
+	argv[2] = "../convert/test.ebank";
 
 	printf( "flashing memory...!\n" );
 
@@ -167,7 +170,7 @@ int main( int argc, char *argv[] ) {
 	
 	{
 		int cv = 0;
-
+/*
 		SPCU_LOAD( 1287 );
 		
 		FILE *f = fopen( "choir.brr", "rb" );
@@ -180,7 +183,8 @@ int main( int argc, char *argv[] ) {
 			SPCU_TRANSFER( a, feof(f) );
 		}
 		fclose(f);
-		/*
+	
+		
 		// SET M VOLUME
 		SPCU_MVOL( 0x7F, 0x7F );
 		
@@ -192,8 +196,8 @@ int main( int argc, char *argv[] ) {
 
 		// set keyon
 		SPCU_KON( 0, 0x7F, 0 );
-*/
-		SPCU_RET();
+
+		SPCU_RET();*/	
 	}
 	
 	Player_Start(0);

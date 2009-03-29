@@ -14,9 +14,9 @@ static uint8_t memory[65536];
 typedef struct {
 	uint16_t origin;
 	uint16_t loop;
-} Sample;
+} SampleSPC;
 
-static Sample SampleDirectory[64];
+static SampleSPC SampleDirectory[64];
 static int NextSample;
 static uint16_t TransferAddress;
 
@@ -228,7 +228,7 @@ void SPCEMU_WRITEPORT( int index, uint8_t value ) {
 void TransferSampleStart() {
 	SampleDirectory[NextSample].origin = TransferAddress;
 	SampleDirectory[NextSample].loop = TransferAddress + (PORTS_IN[2] | (PORTS_IN[3] << 8));
-
+	NextSample++;
 	mode = MODE_TRANSFER;
 }
 
@@ -461,6 +461,7 @@ void PROCESS_DSP_UPDATE() {
 				SampleDirectory[VOICE_KEYON[i]-1].loop,
 				VOICE_OFFSET[i] * 144
 			);
+			VOICE_KEYON[i] = 0;
 		}
 
 		if( PAN_BITS & (1<<i) ) {

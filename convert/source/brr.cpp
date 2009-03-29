@@ -48,7 +48,7 @@ namespace VRC6Bot {
 
 		int new_looplength = looplength + amount;
 		int new_length = length + amount;
-		int new_loopstart = length - looplength;
+		int new_loopstart = new_length - new_looplength;
 
 		double factor = (double)length / (double)new_length;
 
@@ -74,6 +74,10 @@ namespace VRC6Bot {
 		}
 		delete[] (*Data);
 		(*Data) = newdata;
+
+		length = new_length;
+		loopstart = new_loopstart;
+		looplength = new_looplength;
 
 		return 1.0/factor; // must scale center freq by this factor!!
 	}
@@ -111,8 +115,8 @@ namespace VRC6Bot {
 		delete[] (*Data);
 		(*Data) = newdata;
 
-		looplength += unroll * looplength;
 		length += unroll * looplength;
+		looplength += unroll * looplength;
 	}
 
 	Sample::~Sample() {
@@ -129,8 +133,8 @@ namespace VRC6Bot {
 		if( !source.Loop )
 			looplength = 0;
 
-		if( length > looplength )
-			length = looplength;
+		if( (length > loopstart+looplength) && looplength )
+			length = loopstart+looplength;
 
 		s16 *Data = new s16[ length ];
 
@@ -156,22 +160,30 @@ namespace VRC6Bot {
 					tuning_factor = ResampleLoop( &Data, length, loopstart, looplength, 16 - (looplength&15) );
 					
 				}
-				if( loopstart & 15 ) {
-					PadData( &Data, length, loopstart, looplength, 16 - (loopstart&15), 0 );
-				}
+			}
+			if( loopstart & 15 ) {
+				PadData( &Data, length, loopstart, looplength, 16 - (loopstart&15), 0 );
 			}
 		} else {
 			if( length & 0xF )
-				PadData( &Data, length, loopstart, looplength, 0, (length + 15) & (~0xF) );
+				PadData( &Data, length, loopstart, looplength, 0, 16 - (length & 0xF) );
 		}
 
 		DataLength = length / 16 * 9;
 		Loop = (loopstart / 16) * 9;
 		BRRdata = new u8[ DataLength ];
-		if( cinput )
-			GenerateBRR( Data, BRRdata, length, loopstart, looplength, cinput->force_filter == -1 ? 4 : cinput->force_filter, cinput->force_loop_filter == -1 ? 4 : cinput->force_loop_filter, 1.0 );
-		else
-			GenerateBRR( Data, BRRdata, length, loopstart, looplength, 4, 4, 1.0 );
+
+		double amp=1.0;
+		u8 c_redo=1;
+		
+		while(c_redo) {
+			
+			if( cinput )
+				c_redo=GenerateBRR( Data, BRRdata, length, loopstart, looplength, cinput->force_filter == -1 ? 4 : cinput->force_filter, cinput->force_loop_filter == -1 ? 4 : cinput->force_loop_filter, amp );
+			else
+				c_redo=GenerateBRR( Data, BRRdata, length, loopstart, looplength, 4, 4, amp );
+			amp -= 0.01;
+		}
 
 		TuningFactor = tuning_factor;
 	}

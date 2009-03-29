@@ -28,6 +28,7 @@ extern "C" {
 		prescaler = config & 0xF;
 		need_update=false;
 
+		counter=  0;
 		boundary = bits16 ? 65536.0 : 256.0;
 		timerhz = 33554432.0 / (1<<prescaler);
 
