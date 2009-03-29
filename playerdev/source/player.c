@@ -16,18 +16,26 @@ extern const rom uint16_t spc_ftab[];
 extern const rom uint16_t vrc6_ftab[];
 extern const rom uint16_t timer_tab[];
 extern const rom uint8_t lut_div3[];
-/*
-// very precise timer setting...
-static const rom uint16_t timer_tab[] = {
-    24576, 25818, 26986, 28087, 29128, 30112, 31044, 31928, 32768, 33568, 34329, 35055, 35747, 36409, 37043, 37649, 38230, 38787, 39322, 39836, 40330, 40806, 41264, 41705, 42131, 42541, 42938, 43321, 43691, 44049, 44396, 44731, 
-    45056, 45372, 45677, 45974, 46261, 46541, 46812, 47076, 47332, 47581, 47824, 48060, 48290, 48514, 48732, 48945, 49152, 49355, 49552, 49745, 49933, 50116, 50296, 50471, 50642, 50809, 50973, 51133, 51290, 51443, 51593, 51739, 
-    51883, 52024, 52162, 52297, 52429, 52559, 52686, 52811, 52933, 53053, 53171, 53287, 53400, 53512, 53621, 53728, 53834, 53937, 54039, 54139, 54237, 54334, 54429, 54522, 54614, 54704, 54793, 54880, 54966, 55051, 55134, 55216, 
-    55296, 55376, 55454, 55531, 55607, 55681, 55755, 55827, 55899, 55969, 56039, 56107, 56174, 56241, 56306, 56371, 56434, 56497, 56559, 56620, 56680, 56740, 56798, 56856, 56913, 56970, 57025, 57080, 57134, 57188, 57241, 57293, 
-    57344, 57395, 57446, 57495, 57544, 57593, 57641, 57688, 57735, 57781, 57826, 57871, 57916, 57960, 58004, 58047, 58089, 58131, 58173, 58214, 58255, 58295, 58335, 58374, 58413, 58452, 58490, 58527, 58565, 58601, 58638, 58674, 
-    58710, 58745, 58780, 58815, 58849, 58883, 58917, 58950, 58983, 59016, 59048, 59080, 59111, 59143, 59174, 59205, 59235, 59265, 59295, 59325, 59354, 59383, 59412, 59440, 59468, 59496, 59524, 59551, 59579, 59606, 59632, 59659, 
-    59685, 59711, 59737, 59762, 59788, 59813, 59838, 59862, 59887, 59911, 59935, 59959, 59983, 60006, 60029, 60052, 60075, 60098, 60120, 60143, 60165, 60187, 60208, 60230, 60251, 60273, 60294, 60315, 60335, 60356, 60376, 60396, 
+
+const rom int8_t IT_FineSineData[] = {
+	  0,  2,  3,  5,  6,  8,  9, 11, 12, 14, 16, 17, 19, 20, 22, 23,
+	 24, 26, 27, 29, 30, 32, 33, 34, 36, 37, 38, 39, 41, 42, 43, 44,
+	 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 56, 57, 58, 59,
+	 59, 60, 60, 61, 61, 62, 62, 62, 63, 63, 63, 64, 64, 64, 64, 64,
+	 64, 64, 64, 64, 64, 64, 63, 63, 63, 62, 62, 62, 61, 61, 60, 60,
+	 59, 59, 58, 57, 56, 56, 55, 54, 53, 52, 51, 50, 49, 48, 47, 46,
+	 45, 44, 43, 42, 41, 39, 38, 37, 36, 34, 33, 32, 30, 29, 27, 26,
+	 24, 23, 22, 20, 19, 17, 16, 14, 12, 11,  9,  8,  6,  5,  3,  2,
+	  0, -2, -3, -5, -6, -8, -9,-11,-12,-14,-16,-17,-19,-20,-22,-23,
+	-24,-26,-27,-29,-30,-32,-33,-34,-36,-37,-38,-39,-41,-42,-43,-44,
+	-45,-46,-47,-48,-49,-50,-51,-52,-53,-54,-55,-56,-56,-57,-58,-59,
+	-59,-60,-60,-61,-61,-62,-62,-62,-63,-63,-63,-64,-64,-64,-64,-64,
+	-64,-64,-64,-64,-64,-64,-63,-63,-63,-62,-62,-62,-61,-61,-60,-60,
+	-59,-59,-58,-57,-56,-56,-55,-54,-53,-52,-51,-50,-49,-48,-47,-46,
+	-45,-44,-43,-42,-41,-39,-38,-37,-36,-34,-33,-32,-30,-29,-27,-26,
+	-24,-23,-22,-20,-19,-17,-16,-14,-12,-11, -9, -8, -6, -5, -3, -2
 };
-*/
+
 typedef struct {
 	uint8_t SampleCount;
 	uint8_t r1;
@@ -101,6 +109,10 @@ enum {
 	INITIAL_SPC_VOLUME_R = 0x7F
 };
 
+enum {
+	PITCH_MAX = 107<<6
+};
+
 ChannelData Channels[11];
 
 static uint8_t ModTick;
@@ -136,6 +148,9 @@ static uint8_t PatternRows;
 static uint16_t PatternUpdateFlags;
 
 extern uint16_t PatternTable[];
+
+static uint8_t PatternJumpRow;
+static uint8_t PatternJumpEnable;
 
 //
 // temporary values for some module channel processing....
@@ -233,6 +248,7 @@ void Player_ChangePosition( uint8_t NewPosition ) {
 	PatternAddress = EModAddress + PatternTable[patt] + 4;
 	PatternRows = ReadEx8( PatternAddress - 2 );
 	
+	PatternJumpEnable = 0;
 	ModTick = 0;
 	ModRow = 0;
 	
@@ -409,9 +425,14 @@ void Player_OnTick() {
 	ModTick++;
 	if( ModTick >= ModSpeed ) {
 		ModTick = 0;
-		ModRow++;
-		if( ModRow > PatternRows ) {
-			Player_ChangePosition( ModPosition + 1 );
+
+		if( PatternJumpEnable ) {
+			Player_ChangePosition( PatternJumpRow );
+		} else {
+			ModRow++;
+			if( ModRow > PatternRows ) {
+				Player_ChangePosition( ModPosition + 1 );
+			}
 		}
 	}
 }
@@ -513,6 +534,8 @@ static void ResetVolume( ChannelData *ch ) {
 	ch->PE_Node = 0;
 	ch->PE_Tick = 0;
 
+	ch->Cmem = 0;
+
 	// set keyon, clear fade
 	ch->FlagsH |= CFH_KEYON;
 	ch->FlagsH &= ~CFH_FADE;
@@ -576,7 +599,7 @@ static void Command_Panbrello( uint8_t ch_index );
 static void Command_Zxx( uint8_t ch_index );
 
 
-static command_routine command_list[] = {
+static const rom command_routine command_list[] = {
 	Command_SetSpeed,			// Axx
 	Command_PatternJump,		// Bxx
 	Command_PatternBreak,		// Cxx
@@ -615,6 +638,17 @@ const rom uint8_t command_memory_map[] = {
 	// J   K   L   M   N   O   P   Q   R
 	   6,  0,  7,  0,  1,  0,  7,  0
 	// S   T   U   V   W   X   Y   Z
+};
+
+enum {
+	PCMDMEM_VOL,
+	PCMDMEM_PSLIDE,
+	PCMDMEM_GLIS,
+	PCMDMEM_ARP,
+	PCMDMEM_SOFS,
+	PCMDMEM_EX,
+	PCMDMEM_VIB,
+	PCMDMEM_Q,
 };
 
 static void ProcessCommandMemory( uint8_t ch_index ) {
@@ -890,22 +924,22 @@ static uint8_t DoVolumeSlide( uint8_t base, uint8_t param, uint8_t max ) {
 	if( b == 0 ) { // Dx0
 		if( ModTick != 0 || (a == 0xF) ) {
 			base += a;
-			if( base > max ) base = 0;
+			if( base > max ) base = max;
 		}
 	} else if( a == 0 ) { // D0x
 		if( ModTick != 0 || (b == 0xF) ) {
-			base += b;
-			if( base > max ) base = max;
+			base -= b;
+			if( base > max ) base = 0;
 		}
 	} else if( b == 0xF ) { // DxF
 		if( ModTick == 0 ) {
-			base -= a;
-			if( base > max ) base = 0;
+			base += a;
+			if( base > max ) base = max;
 		}
 	} else if( a == 0xF ) { // DFx
 		if( ModTick == 0 ) {
-			base += a;
-			if( base > max ) base = max;
+			base -= b;
+			if( base > max ) base = 0;
 		}
 	}
 	return base;
@@ -919,16 +953,23 @@ static void Command_SetSpeed( uint8_t ch_index ) {
 }
 
 static void Command_PatternJump( uint8_t ch_index ) {
-	
+	if( ModTick == 0 ) {
+		PatternJumpRow = Channels[ch_index].p_Parameter;
+		PatternJumpEnable = 1;
+	}
 }
 
 static void Command_PatternBreak( uint8_t ch_index ) {
-	
+	if( ModTick == 0 ) {
+		PatternJumpRow = ModPosition + 1;
+		PatternJumpEnable = 1;
+	}
 }
 
 static void Command_VolumeSlide( uint8_t ch_index ) {
 	ChannelData *ch = Channels+ch_index;
 	ch->Volume = DoVolumeSlide( ch->Volume, ch->p_Parameter, 64 );
+	t_Volume = ch->Volume;
 }
 
 static void Command_PitchSlideDown( uint8_t ch_index ) {
@@ -995,25 +1036,60 @@ static void Command_Glissando( uint8_t ch_index ) {
 }
 
 static void Command_Vibrato( uint8_t ch_index ) {
-	
+	ChannelData *ch = Channels+ch_index;
+	uint8_t p = pattern_command_memory[(ch_index<<3)+PCMDMEM_VIB];
+	uint8_t x = p >> 4;
+	uint8_t y = p & 0xF;
+
+	//if( ModTick != 0 ) {
+		ch->Cmem += x * 4;
+//	}
+
+	t_Pitch += (IT_FineSineData[ch->Cmem] * y) >> 4;
+	if( t_Pitch > 16384 ) t_Pitch = 0;
+	if( t_Pitch > PITCH_MAX ) t_Pitch = PITCH_MAX;
 }
 
 static void Command_Tremor( uint8_t ch_index ) {
+	//todo
 }
 
 static void Command_Arpeggio( uint8_t ch_index ) {
+	ChannelData *ch = Channels + ch_index;
+	if( ModTick == 0 ) {
+		ch->Cmem = 0;
+	} else {
+		ch->Cmem++;
+		if( ch->Cmem == 3 ) ch->Cmem = 0;
+	}
+	if( ch->Cmem == 1 ) {
+		t_Pitch += (ch->p_Parameter >> 4) << 6;
+	} else if( ch->Cmem == 2 ) {
+		t_Pitch += (ch->p_Parameter & 0xF) << 6;
+	}
 }
 
 static void Command_VibratoVolumeSlide( uint8_t ch_index ) {
+	ChannelData *ch = Channels+ch_index;
+	Command_Vibrato( ch_index );
+
+	ch->Volume = DoVolumeSlide( ch->Volume, ch->p_Parameter, 64 );
+	t_Volume = ch->Volume;
 }
 
 static void Command_GlissandoVolumeSlide( uint8_t ch_index ) {
+	//todo
 }
 
 static void Command_ChannelVolume( uint8_t ch_index ) {
+	if( ModTick == 0 ) {
+		Channels[ch_index].VolumeScale = ch_index;
+	}
 }
 
 static void Command_ChannelVolumeSlide( uint8_t ch_index ) {
+	ChannelData *ch = Channels+ch_index;
+	ch->VolumeScale = DoVolumeSlide( ch->VolumeScale, ch->p_Parameter, 64 );
 }
 
 static void Command_SampleOffset( uint8_t ch_index ) {
@@ -1022,35 +1098,173 @@ static void Command_SampleOffset( uint8_t ch_index ) {
 }
 
 static void Command_PanningSlide( uint8_t ch_index ) {
+	ChannelData *ch = Channels+ch_index;
+	ch->Panning = DoVolumeSlide( ch->Panning, ch->p_Parameter, 64 );
 }
 
 static void Command_RetriggerNote( uint8_t ch_index ) {
+	ChannelData *ch = Channels + ch_index;
+	uint8_t x = ch->p_Parameter >> 4;
+	uint8_t y = ch->p_Parameter & 0xF;
+	if( x == 0 ) x = 1;
+	if( ch->Cmem == 0 ) {
+		ch->Cmem = x;
+	} else {
+		ch->Cmem--;
+		if( ch->Cmem == 0 ) {
+			// retrigget note...
+			ch->Cmem = x;
+			switch( y ) {
+			case 1:
+			case 2:
+			case 3:
+			case 4:
+				ch->Volume -= 1<<(y-1);
+				if( ch->Volume > 64 ) ch->Volume = 0;
+				break;
+			case 6:
+				ch->Volume = (ch->Volume * 170) >> 8;
+				break;
+			case 7:
+				ch->Volume >>= 1;
+				break;
+			case 9:
+			case 10:
+			case 11:
+			case 12:
+			case 13:
+				ch->Volume += 1<<(y-9);
+				if( ch->Volume > 64 ) ch->Volume = 64;
+				break;
+			case 14:
+				ch->Volume = (ch->Volume * 3) >> 1;
+				if( ch->Volume > 64 ) ch->Volume = 64;
+				break;
+			case 15:
+				ch->Volume <<= 1;
+				if( ch->Volume > 64 ) ch->Volume = 64;
+			}
+			
+			ch->FlagsH |= CFH_KEYON;
+		}
+	}
 }
 
 static void Command_Tremolo( uint8_t ch_index ) {
+	//todo
 }
 
+static void SCommand_Echo( uint8_t ch_index );
+static void SCommand_Panning( uint8_t ch_index );
+static void SCommand_NoteCut( uint8_t ch_index );
+static void SCommand_NoteDelay( uint8_t ch_index );
+static void SCommand_PatternDelay( uint8_t ch_index );
+static void SCommand_FUNKREPEAT( uint8_t ch_index );
+static void SCommand_Unsupported( uint8_t c ) {}
+
+static const rom command_routine s_command_list[] = {
+	SCommand_Echo,			// S0x
+	SCommand_Unsupported,	// S1x
+	SCommand_Unsupported,	// S2x
+	SCommand_Unsupported,	// S3x
+	SCommand_Unsupported,	// S4x
+	SCommand_Unsupported,	// S5x
+	SCommand_Unsupported,	// S6x
+	SCommand_Unsupported,	// S7x
+	SCommand_Panning,		// S8x
+	SCommand_Unsupported,	// S9x
+	SCommand_Unsupported,	// SAx
+	SCommand_Unsupported,	// SBx
+	SCommand_NoteCut,		// SCx
+	SCommand_NoteDelay,		// SDx
+	SCommand_PatternDelay,	// SEy
+	SCommand_FUNKREPEAT,	// SFx
+};
+
 static void Command_Extended( uint8_t ch_index ) {
+	s_command_list[Channels[ch_index].p_Parameter>>4](ch_index);
+}
+
+static void SCommand_Echo( uint8_t ch_index ) {
+	//todo
+}
+
+static void SCommand_Panning( uint8_t ch_index ) {
+	if( ModTick == 0 ) {
+		uint8_t p = (Channels[ch_index].p_Parameter & 0xF);
+		Channels[ch_index].Panning = (p << 2) + (p >> 2);
+	}
+}
+
+static void SCommand_NoteCut( uint8_t ch_index ) {
+	if( ModTick == (Channels[ch_index].p_Parameter & 0xF) ) {
+		Channels[ch_index].Volume = t_Volume = 0;
+	}
+}
+
+static void SCommand_NoteDelay( uint8_t ch_index ) {
+	//todo
+}
+
+static void SCommand_PatternDelay( uint8_t ch_index ) {
+	//todo
+}
+
+static void SCommand_FUNKREPEAT( uint8_t ch_index ) {
+	//hu hu
 }
 
 static void Command_Tempo( uint8_t ch_index ) {
+	ChannelData *ch = Channels+ch_index;
+	uint8_t p = ch->p_Parameter;
+	if( p >= 0x20 ) {
+		if( ModTick == 0 )
+			Player_SetTempo( p );
+	} else if( p >= 0x10 ) {
+		if( ModTick != 0 ) {
+			ModTempo += p & 0xF;
+			if( ModTempo < 32 ) ModTempo = 255;
+			Player_SetTempo( ModTempo );
+		}
+	} else {
+		if( p == 0 ) return;
+		if( ModTick != 0 ) {
+			Player_SetTempo( ModTempo - p < 32 ? 32 : ModTempo - p );
+		}
+	}
 }
 
 static void Command_FineVibrato( uint8_t ch_index ) {
+	ChannelData *ch = Channels+ch_index;
+	uint8_t p = pattern_command_memory[(ch_index<<3)+PCMDMEM_VIB];
+	uint8_t x = p >> 4;
+	uint8_t y = p & 0xF;
+	ch->Cmem += x * 4;
+	t_Pitch += (IT_FineSineData[ch->Cmem] * y) >> 6;
+	if( t_Pitch > 16384 ) t_Pitch = 0;
+	if( t_Pitch > PITCH_MAX ) t_Pitch = PITCH_MAX;
 }
 
 static void Command_GlobalVolume( uint8_t ch_index ) {
+	if( ModTick == 0 )
+		ModGlobalVolume = Channels[ch_index].p_Parameter;
 }
 
 static void Command_GlobalVolumeSlide( uint8_t ch_index ) {
+	ModGlobalVolume = DoVolumeSlide( ModGlobalVolume, Channels[ch_index].p_Parameter, 128 );
 }
 
 static void Command_SetPanning( uint8_t ch_index ) {
+	if( ModTick == 0 ) {
+		Channels[ch_index].Panning = Channels[ch_index].p_Parameter >> 2;
+	}
 }
 
 static void Command_Panbrello( uint8_t ch_index ) {
+	//todo
 }
 
 static void Command_Zxx( uint8_t ch_index ) {
+	// do what?
 }
 

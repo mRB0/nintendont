@@ -14,6 +14,8 @@ typedef struct {
 	uint8_t		VolumeScale;	// 0..64
 	uint8_t		Panning;		// 0..64
 	uint8_t		Sample;			// 0..?
+
+	uint8_t		Cmem;			// command processing variable!
 	
 	uint8_t		p_Note;			// pattern data
 	uint8_t		p_Instrument;	//
