@@ -456,8 +456,13 @@ static void UpdateChannel( uint8_t ch_index, uint8_t new_data ) {
 				
 				if( ch->p_Note == 254 ) {
 					// note cut
+					ch->Flags &= ~CF_NOTE;
+					ch->Volume = 0;
 				} else if( ch->p_Note == 255 ) {
 					// note off
+					
+					ch->Flags &= ~CF_NOTE;
+					ch->FlagsH &= ~CFH_KEYON;
 				} else {
 					uint8_t glissando = 0;
 					if( ch->Flags & CF_CMD ) {
@@ -494,14 +499,14 @@ static void UpdateChannel( uint8_t ch_index, uint8_t new_data ) {
 				if( ch->Flags & (CF_NOTE|CF_INSTR) ) {
 					ResetVolume( ch );
 				}
-				
+				/*
 				if( ch->Flags & (CF_NOTE) ) {
 					if( ch->p_Note == 255 ) {
-						ch->FlagsH &= ~CFH_KEYON;
+						
 					} else if( ch->p_Note == 254 ) {
-						ch->Volume = 0;
+						
 					}
-				}
+				}*/
 				ch->Flags &= ~CF_NOTE;
 			}
 		}
@@ -743,7 +748,7 @@ static void ProcessChannelAudio( uint8_t ch_index, uint8_t use_t ) {
 			if( ch->VE_Tick == 0 ) {
 				// tick0 processing
 				ch->VE_Y = env->y << 8;
-				
+					
 			} else {
 				ch->VE_Y += *(((int16_t*)(env))+1);
 
@@ -756,7 +761,7 @@ static void ProcessChannelAudio( uint8_t ch_index, uint8_t use_t ) {
 
 			VEV = ch->VE_Y >> 8;
 			
-			if( !( ch->VE_Node == ins->V_Sustain && ch->FlagsH & CFH_KEYON) ) {
+			if( !( ch->VE_Node == ins->V_Sustain && (ch->FlagsH & CFH_KEYON)) ) {
 			
 				ch->VE_Tick++;
 				if( ch->VE_Tick >= (env->duration+1) ) {
@@ -789,6 +794,11 @@ static void ProcessChannelAudio( uint8_t ch_index, uint8_t use_t ) {
 		}
 	} else {
 		VEV = 64;
+	}
+
+	if( ch->FlagsH & CFH_FADE ) {
+		ch->Fadeout -= ins->Fadeout;
+		if( ch->Fadeout > 1024 ) ch->Fadeout = 0;
 	}
 
 	if( !(ch->FlagsH & CFH_DELAY) ) {
@@ -1094,7 +1104,9 @@ static void Command_GlissandoVolumeSlide( uint8_t ch_index ) {
 
 static void Command_ChannelVolume( uint8_t ch_index ) {
 	if( ModTick == 0 ) {
-		Channels[ch_index].VolumeScale = ch_index;
+		uint8_t p = Channels[ch_index].p_Parameter;
+		Channels[ch_index].VolumeScale = p > 64 ? 64 : p;
+		
 	}
 }
 
