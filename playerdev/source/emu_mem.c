@@ -1,7 +1,7 @@
 #include "emu_mem.h"
 
 uint8_t IBANK[65536];
-uint8_t EBANK[65536];
+uint8_t EBANK[256*1024];
 
 uint24_t ExNext;
 

@@ -128,8 +128,10 @@ int AudioCallback( void *outputBuffer, void *,
 int main( int argc, char *argv[] ) {
 	
 	int a = 5;
-	if( argc < 3 )
+	if( argc < 3 ) {
 		printf( USAGE );
+		return 0;
+	}
 
 	char *bank_i, *bank_e;
 	int song_index;
@@ -162,7 +164,7 @@ int main( int argc, char *argv[] ) {
 			audio_rate = atoi(argv[arg]);
 		}
 	}
-	
+	song_index=1;
 	printf( "flashing memory...!\n" );
 	
 	// flash memory banks
