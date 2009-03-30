@@ -415,6 +415,7 @@ namespace VRC6Bot {
 				nodes[i].delta = ((source.Nodes[i+1].y - source.Nodes[i].y) * 256 + duration/2) / duration;
 			} else {
 				nodes[i].delta = 0;
+				nodes[i].duration = 0;
 			}
 		}
 	}
