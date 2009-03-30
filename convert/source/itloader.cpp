@@ -89,7 +89,7 @@ namespace ITLoader {
 
 		u32 *InstrTable = new u32[InstrumentCount];
 		u32 *SampleTable = new u32[SampleCount];
-		u32 *PatternTable = new u32[SampleCount];
+		u32 *PatternTable = new u32[PatternCount];
 		
 		for( int i = 0; i < InstrumentCount; i++ )
 			InstrTable[i] = file.Read32();

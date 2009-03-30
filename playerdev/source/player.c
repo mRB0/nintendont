@@ -334,9 +334,9 @@ void Player_Start( uint8_t ModuleIndex ) {
 	
 	uint8_t i;
 
-	//SPCU_EVOL(0,0); *******************************************************######
-	//SPCU_ECEN(0);
-	//SPCU_RESET();
+	SPCU_EVOL(0,0);
+	SPCU_ECEN(0);
+	SPCU_RESET();
 
 	Module = (rom IModuleData*)(IBank + ReadEx16( EBANK_IMOD_TABLE + ModuleIndex*2 ));
 	SampleTable = (uint16_t*)(ModuleAddr + IMOD_TABLE_START);
@@ -377,16 +377,17 @@ void Player_Start( uint8_t ModuleIndex ) {
 	
 	{ // setup SPC echo
 		uint8_t edl = ReadEx8( EModAddress + EMD_EchoDelay );
-//		SPCU_EDL( edl );
-//		SPCU_EFB( ReadEx8( EModAddress + EMD_EchoFeedback ) );
-//		for( i = 0; i < 8; i++ ) {
-//			SPCU_COEF( i, ReadEx8( EModAddress + EMD_EchoFirCoefficients + i ) );
-//		}
-//		if( edl ) {
-//			SPCU_EVOL(	ReadEx8( EModAddress + EMD_EchoVolumeLeft ),
-//						ReadEx8( EModAddress + EMD_EchoVolumeRight ) );
-//			SPCU_ECEN( 1 );
-//		}
+		SPCU_EDL( edl );
+		SPCU_EFB( ReadEx8( EModAddress + EMD_EchoFeedback ) );
+		for( i = 0; i < 8; i++ ) {
+			SPCU_COEF( i, ReadEx8( EModAddress + EMD_EchoFirCoefficients + i ) );
+		}
+		if( edl ) {
+			SPCU_EON( ReadEx8( EModAddress + EMD_EchoEnableBits ) );
+			SPCU_EVOL(	ReadEx8( EModAddress + EMD_EchoVolumeLeft ),
+						ReadEx8( EModAddress + EMD_EchoVolumeRight ) );
+			SPCU_ECEN( 1 );
+		}
 	}
 
 	
@@ -561,10 +562,14 @@ static void ProcessVolumeCommand( ChannelData *ch ) {
 			vt += v - 85;
 			ch->Volume = vt > 64 ? 64 : vt;
 		}
-	} else {				// vol down
+	} else if( v < 105 ) {				// vol down
 		if( ModTick != 0 ) {
 			vt -= v - 95;
 			ch->Volume = vt < 0 ? 0 : vt;
+		}
+	} else if( v >= 128 && v <= 192 ) {
+		if( ModTick == 0 ) {
+			ch->Panning = v - 128;
 		}
 	}
 }
@@ -751,29 +756,32 @@ static void ProcessChannelAudio( uint8_t ch_index, uint8_t use_t ) {
 
 			VEV = ch->VE_Y >> 8;
 			
-			ch->VE_Tick++;
-			if( ch->VE_Tick >= (env->duration+1) ) {
-				ch->VE_Tick = 0;
-				
-				
-				if( ch->VE_Node == ins->V_LoopEnd ) {
-					// loop
-					ch->VE_Node = ins->V_LoopStart;
+			if( !( ch->VE_Node == ins->V_Sustain && ch->FlagsH & CFH_KEYON) ) {
+			
+				ch->VE_Tick++;
+				if( ch->VE_Tick >= (env->duration+1) ) {
 					ch->VE_Tick = 0;
+					
+					
+					if( ch->VE_Node == ins->V_LoopEnd ) {
+						// loop
+						ch->VE_Node = ins->V_LoopStart;
+						ch->VE_Tick = 0;
 
-					if( !(ch->FlagsH & CFH_KEYON) ) {
-						ch->FlagsH |= CFH_FADE;
-					}
-				} else if( ch->VE_Node == (ins->V_Length - 1) ) {
-					// final node...
-					// do something?
-					ch->VE_Tick = 0;
+						if( !(ch->FlagsH & CFH_KEYON) ) {
+							ch->FlagsH |= CFH_FADE;
+						}
+					} else if( ch->VE_Node == (ins->V_Length - 1) ) {
+						// final node...
+						// do something?
+						ch->VE_Tick = 0;
 
-					if( !(ch->FlagsH & CFH_KEYON) ) {
-						ch->FlagsH |= CFH_FADE;
+						if( !(ch->FlagsH & CFH_KEYON) ) {
+							ch->FlagsH |= CFH_FADE;
+						}
+					} else {
+						ch->VE_Node++;
 					}
-				} else {
-					ch->VE_Node++;
 				}
 			}
 		} else {
