@@ -86,6 +86,8 @@ void vrc6_init(void)
 	TRIS_VRC6_CE = 1;
 	ACTIVATE_VRC6();
 	
+	Delay100TCYx(1);
+	
 	// init vrc6 mapping stuff
 	
 	port_write(0x9003, 0x00);
@@ -99,6 +101,7 @@ void vrc6_init(void)
 	port_write(0xf002, 0x00);
 	
 	// init vrc6 sound
+	Delay100TCYx(1);
 	
 	port_write(0x9000, 0x7f);
 	port_write(0x9001, 0x00);
@@ -136,7 +139,7 @@ void flash_test(void)
 void system_init(void)
 {
 	// 8 MHz: IRCF2:0 = 0b111
-	OSCCONbits.IRCF0 = 0;
+	OSCCONbits.IRCF0 = 1;
 	OSCCONbits.IRCF1 = 1;
 	OSCCONbits.IRCF2 = 1;
 	OSCCONbits.IDLEN = 1;
@@ -264,14 +267,14 @@ void main(void)
 		port_write(0x9001, 0xe7);
 		port_write(0x9002, 0x82);
 		
-		Delay10KTCYx(50);
+		Delay10KTCYx(75);
 		
 		port_write(0xa001, 0xe7);
 		port_write(0xa002, 0x82);
 		port_write(0x9001, 0x72);
 		port_write(0x9002, 0x82);
 		
-		Delay10KTCYx(50);
+		Delay10KTCYx(75);
 		
 		port_write(0xa001, 0x72);
 		port_write(0xa002, 0x82);
@@ -280,7 +283,7 @@ void main(void)
 
 		DEACTIVATE_VRC6();
 		
-		Delay10KTCYx(50);
+		Delay10KTCYx(75);
 		
 		
 	}
