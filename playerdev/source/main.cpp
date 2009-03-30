@@ -4,6 +4,17 @@
 
 // (vrc6bot emulator)
 
+const char *USAGE = "\n"
+
+"USAGE: vrc6bot [...OPTIONS...]\n\n"
+
+"Required Options:\n"
+"-b <input.ibank> <input.ebank> Specify sound banks.\n"
+"-i <song_index> Specify which song to play\n\n"
+
+"Optional Options:\n"
+"-s <audio rate> Specify audio sampling rate [default=44100]\n";
+
 #include <stdio.h>
 
 #include "stdint.h"
@@ -26,7 +37,7 @@ static inline int saturate_i16( int value ) {
 	return value;
 }
 
-uint32_t audio_rate;
+uint32_t audio_rate = 44100;
 
 int frames_until_next = 0;
 
@@ -118,23 +129,52 @@ int main( int argc, char *argv[] ) {
 	
 	int a = 5;
 	if( argc < 3 )
-		printf( "USAGE: VRC6BOT INPUT.IBANK INPUT.EBANK\n" );
+		printf( USAGE );
 
-	argv[1] = "../convert/test.ibank";
-	argv[2] = "../convert/test.ebank";
+	char *bank_i, *bank_e;
+	int song_index;
 
+	for( int arg = 1, m=0; arg < argc; arg++ ) {
+		if( m==0 ) {
+			if( argv[arg][0] == '-' ) {
+				switch( argv[arg][1] ) {
+					case 'b':
+						m=1;
+						break;
+					case 'i':
+						m=3;
+						break;
+					case 's':
+						m=4;
+						break;
+				}
+			}
+		}else if( m == 1 ) {
+			bank_i = argv[arg];
+			m=2;
+		}else if( m == 2 ){
+			bank_e = argv[arg];
+			m=0;
+		}else if( m == 3 ) {
+			song_index = atoi(argv[arg]);
+			m=0;
+		}else if( m == 4 ) {
+			audio_rate = atoi(argv[arg]);
+		}
+	}
+	
 	printf( "flashing memory...!\n" );
-
+	
 	// flash memory banks
 	{
-		FILE *f = fopen( argv[1], "rb" );
+		FILE *f = fopen( bank_i, "rb" );
 		fseek( f, 0, SEEK_END );
 		int fsize = ftell(f);
 		fseek( f, 0, SEEK_SET );
 		fread( GetIBankPtr(), 1, fsize, f );
 		fclose(f);
 		
-		f = fopen( argv[2], "rb" );
+		f = fopen( bank_e, "rb" );
 		fseek( f, 0, SEEK_END );
 		fsize = ftell(f);
 		fseek( f, 0, SEEK_SET );
@@ -149,7 +189,6 @@ int main( int argc, char *argv[] ) {
 	sp.deviceId = audio.getDefaultOutputDevice();
 	sp.nChannels = 2;
 	sp.firstChannel = 0;
-	audio_rate = 48000;
 	uint32_t frames = 1024;
 	
 	audio.openStream(
@@ -198,17 +237,17 @@ int main( int argc, char *argv[] ) {
 		SPCU_KON( 0, 0x7F, 0 );
 
 		SPCU_RET();*/	
-
+/*
 		SPCU_EVOL( 90, -90 );
 		SPCU_COEF( 0, 127 );
 		SPCU_EFB( 80 );
 		SPCU_EDL( 2 );
 		SPCU_EON( 0x1 );
 		SPCU_ECEN(1);
-		SPCU_RET();
+		SPCU_RET();*/
 	}
 	
-	Player_Start(0);
+	Player_Start(song_index);
 	Player_StartTimer();
 
 	printf( "Press ENTER key to terminate\n" );
