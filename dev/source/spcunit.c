@@ -1,6 +1,8 @@
 #include "spcunit.h"
 #include "ports.h"
 
+extern rom uint8_t SPCUNIT_BINARY[];
+
 enum {
 	CMD_LOAD	=0,
 	CMD_MVOL	=1,
@@ -19,17 +21,72 @@ enum {
 	CMD_KON		=0x20
 };
 
+// boot to 0x300
+#define BOOT_ADDRESS_L 0x00
+#define BOOT_ADDRESS_H 0x03
+
 static uint8_t SPC_V;
 
 static uint16_t CURRENT_PITCH[8];
 static uint8_t CURRENT_PAN[8];
+
+#ifndef __PLAYERDEV__
+
+static void UploadDriver( void ) {
+	uint8_t data;
+	uint8_t PT0;
+	uint16_t BINARY_READ=0;
+	ports_spc_open();
+
+	// Confirm AA, BB
+	while( ports_spc_read(0) != 0xAA ) {}
+	while( ports_spc_read(1) != 0xBB ) {}
+
+	// PORT1 = NOT 0
+	// PORT2 = ADDRESS LOW
+	// PORT3 = ADDRESS HIGH
+	// PORT0 = PT0
+	ports_spc_write(1, 1);
+	ports_spc_write(2, BOOT_ADDRESS_L );
+	ports_spc_write(3, BOOT_ADDRESS_H );
+	PT0 = 0xCC;
+	ports_spc_write(0, PT0);
+	while( ports_spc_read(0) != PT0 );
+
+	PT0 = 0;
+	
+	// --DATA TRANSFER START--
+	for( BINARY_READ = 0; BINARY_READ < sizeof(SPCUNIT_BINARY); BINARY_READ++ ) {
+		ports_spc_write( 1, SPCUNIT_BINARY[BINARY_READ] );
+		ports_spc_write( 0, PT0 );
+		while( ports_spc_read(0) != PT0 ) {}
+		PT0++;
+	}
+
+	PT0++;
+	
+	ports_spc_write( 1, 0 );
+	ports_spc_write( 2, BOOT_ADDRESS_L );
+	ports_spc_write( 3, BOOT_ADDRESS_H );
+	ports_spc_write( 0, PT0 );
+
+	// driver is uploaded...
+	// and will send V=0 when ready
+	SPC_V = 0;
+
+	ports_spc_close();
+}
+
+#endif
 
 void SPCU_BOOT( void ) {
 #ifdef __PLAYERDEV__
 	//emulated
 	SPC_V = 0x00;
 #else
-	// (INSERT SPC BOOT CODES)
+
+	UploadDriver();
+
 #endif
 	
 	{

@@ -18,7 +18,11 @@ void VRC6_Reset( void ) {
 		periods_h[i] = 0xFF;
 		volumes[i] = 0xFF;
 	}
-	//todo: reset vrc6 ports?
+	
+	// reset sound
+	ports_vrc6_write( PORT_VRC692, 0 );
+	ports_vrc6_write( PORT_VRC6A2, 0 );
+	ports_vrc6_write( PORT_VRC6B2, 0 );
 }
 
 void VRC6_SetPitch( uint8_t channel, uint16_t period ) {
