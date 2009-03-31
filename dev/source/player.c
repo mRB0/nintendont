@@ -7,7 +7,7 @@
 /////////////////////////////////////////
 #else
 
-#include "timers.h"
+#include <timers.h>
 
 #endif
 
@@ -155,6 +155,11 @@ extern uint16_t PatternTable[];
 static uint8_t PatternJumpIndex;
 static uint8_t PatternJumpEnable;
 
+static uint8_t EON_BITS;
+static uint8_t EON_DIRTY;
+static uint8_t EFB_LEVEL;
+static uint8_t EFB_DIRTY;
+
 //
 // temporary values for some module channel processing....
 //
@@ -163,6 +168,8 @@ static uint8_t t_SampleOffset;
 static uint8_t t_Volume;
 static uint8_t t_Panning;
 static uint16_t t_Pitch;
+
+static uint8_t pattern_command_memory[11*8];
 
 static void UpdateChannels( void );
 static void UpdateChannel( uint8_t, uint8_t );
@@ -219,10 +226,10 @@ void Player_Reset( void ) {
 //		Channels[i].PE_Node			= 0;
 
 		Channels[i].Fadeout			= 0;
-		
-//		for( j = 0; j < 16; j++ ) {
-//			Channels[i].CommandMemory[j] = 0;
-//		}
+	
+	}
+	for( i = 0; i < sizeof(pattern_command_memory); i++ ) {
+		pattern_command_memory[i] = 0;
 	}
 }
 
@@ -246,7 +253,7 @@ void Player_ChangePosition( uint8_t NewPosition ) {
 	}
 
 	if( patt == 255 ) {
-		ModPosition = 0; //TODO: STOP PLAYBACK!!!!!!!!!
+		ModPosition = 0; //TODO: STOP PLAYBACK!!!!!!!!!??????
 		patt = ports_flash_readimm( SequenceAddress + ModPosition );
 	}
 	
@@ -397,10 +404,10 @@ void Player_Start( uint8_t ModuleIndex ) {
 	{ // setup SPC echo
 		
 		uint8_t edl = ports_flash_readimm( EModAddress + EMD_EchoDelay );
-		uint8_t efb = ports_flash_readimm( EModAddress + EMD_EchoFeedback );
+		EFB_LEVEL = ports_flash_readimm( EModAddress + EMD_EchoFeedback );
 		ports_flash_close();
 		SPCU_EDL( edl );
-		SPCU_EFB( efb );
+		SPCU_EFB( EFB_LEVEL );
 		ports_flash_open( EModAddress + EMD_EchoFirCoefficients );
 		ports_flash_close();
 		for( i = 0; i < 8; i++ ) {
@@ -411,19 +418,22 @@ void Player_Start( uint8_t ModuleIndex ) {
 			SPCU_COEF( i, c );
 		}
 		if( edl ) {
-			uint8_t eon, evol, evolr;
+			uint8_t  evol, evolr;
 			ports_flash_opencont();
-			eon = ports_flash_readimm(EModAddress + EMD_EchoEnableBits);
+			EON_BITS = ports_flash_readimm(EModAddress + EMD_EchoEnableBits);
 			evol = ports_flash_readimm(EModAddress + EMD_EchoVolumeLeft);
 			evolr = ports_flash_readimm(EModAddress + EMD_EchoVolumeRight);
 			ports_flash_close();
-			SPCU_EON( eon );
+			SPCU_EON( EON_BITS );
 			SPCU_EVOL( evol, evolr );
 			SPCU_ECEN( 1 );
 		}
 	}
 	
 	Player_ChangePosition( 0 );
+
+	EON_DIRTY = 0;
+	EFB_DIRTY = 0;
 	
 	SPCU_RET();
 }
@@ -468,14 +478,23 @@ void Player_OnTick( void ) {
 			}
 		}
 	}
+
+	if( EON_DIRTY || EFB_DIRTY ) {
+		if( EON_DIRTY )
+			SPCU_EON(EON_BITS);
+		if( EFB_DIRTY )
+			SPCU_EFB(EFB_LEVEL);
+		EON_DIRTY = EFB_LEVEL = 0;
+		SPCU_RET();
+	}
+	
+	//SPCU_RET();
 }
 
 static void UpdateChannels( void ) {
 	uint8_t ch;
 	for( ch = 0; ch < 11; ch++ ) {
-		//if( ) {
 		UpdateChannel( ch, !!(PatternUpdateFlags & (1<<ch)) );
-		//}
 	}
 }
 
@@ -531,14 +550,7 @@ static void UpdateChannel( uint8_t ch_index, uint8_t new_data ) {
 				if( ch->Flags & (CF_NOTE|CF_INSTR) ) {
 					ResetVolume( ch );
 				}
-				/*
-				if( ch->Flags & (CF_NOTE) ) {
-					if( ch->p_Note == 255 ) {
-						
-					} else if( ch->p_Note == 254 ) {
-						
-					}
-				}*/
+
 				ch->Flags &= ~CF_NOTE;
 			}
 		}
@@ -670,8 +682,6 @@ static const rom command_routine command_list[] = {
 	Command_Zxx					// Zxx
 
 };
-
-uint8_t pattern_command_memory[11*8];
 
 const rom uint8_t command_memory_map[] = {
 	   0,  0,  0,  1,  2,  2,  3,  7,  0,
@@ -1095,9 +1105,7 @@ static void Command_Vibrato( uint8_t ch_index ) {
 	uint8_t x = p >> 4;
 	uint8_t y = p & 0xF;
 
-	//if( ModTick != 0 ) {
-		ch->Cmem += x * 4;
-//	}
+	ch->Cmem += x * 4;
 
 	t_Pitch += (IT_FineSineData[ch->Cmem] * y) >> 4;
 	if( t_Pitch > 16384 ) t_Pitch = 0;
@@ -1201,7 +1209,7 @@ static void Command_RetriggerNote( uint8_t ch_index ) {
 				if( ch->Volume > 64 ) ch->Volume = 64;
 			}
 			
-			ch->FlagsH |= CFH_KEYON;
+			ch->FlagsH |= CFH_START;
 		}
 	}
 }
@@ -1242,7 +1250,23 @@ static void Command_Extended( uint8_t ch_index ) {
 }
 
 static void SCommand_Echo( uint8_t ch_index ) {
-	//todo
+	if( ModTick == 0 ) {
+		if( ch_index >= 3 ) {
+			
+			uint8_t p = Channels[ch_index].p_Parameter & 0xF;
+			ch_index -= 3;
+			if( p == 1 ) { // turn off echo per channel
+				EON_BITS &= ~(1<<ch_index);
+			} else if( p == 2 ) { // turn on echo per channel
+				EON_BITS |= 1<<ch_index;
+			} else if( p == 3 ) { // turn off echo for all channels
+				EON_BITS = 0;
+			} else if( p == 4 ) { // turn on echo for all channels
+				EON_BITS = 0xFF;
+			}
+			EON_DIRTY = 1;
+		}
+	}
 }
 
 static void SCommand_Panning( uint8_t ch_index ) {
@@ -1275,7 +1299,11 @@ static void SCommand_PatternDelay( uint8_t ch_index ) {
 }
 
 static void SCommand_FUNKREPEAT( uint8_t ch_index ) {
-	//hu hu
+	if( ModTick == 0 ) {
+		uint8_t p = Channels[ch_index].p_Parameter & 0xF;
+		EFB_LEVEL = (p<<3) + (p>>1);
+		EFB_DIRTY = 1;
+	}
 }
 
 static void Command_Tempo( uint8_t ch_index ) {

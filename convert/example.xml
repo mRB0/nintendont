@@ -18,8 +18,8 @@
   sample options
   
   index: specify sample index, 1 based
-  f="0": force filter 0 (DURING BRR COMPRESSION) for entire sample (4-bit mode)
-  lp="0": force filter 0 for loop start block
+  filter="0": force filter 0 (DURING BRR COMPRESSION) for entire sample (4-bit mode)
+  loopfilter="0": force filter 0 for loop start block
   
   specify output files in soundbank tag (ibank = internal bank, ebank = external bank)
 -->

@@ -1,3 +1,8 @@
+
+#ifndef __PLAYERDEV__
+#include <p18f4620.h>
+#endif
+
 #include "ports.h"
 
 #ifdef __PLAYERDEV__
@@ -137,11 +142,11 @@ uint24_t ports_flash_tell( void ) {
 // [real codes]
 
 void ports_spc_open( void ) {
-//	ACTIVATE_SPC();
+	ACTIVATE_SPC();
 }
 
 void ports_spc_close( void ) {
-//	DEACTIVATE_SPC();
+	DEACTIVATE_SPC();
 }
 
 uint8_t ports_spc_read(uint8_t port) {
