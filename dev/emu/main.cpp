@@ -164,7 +164,7 @@ int main( int argc, char *argv[] ) {
 			audio_rate = atoi(argv[arg]);
 		}
 	}
-	song_index=1;
+	
 	printf( "flashing memory...!\n" );
 	
 	// flash rom banks
