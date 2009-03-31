@@ -24,7 +24,7 @@ static uint8_t SPC_V;
 static uint16_t CURRENT_PITCH[8];
 static uint8_t CURRENT_PAN[8];
 
-void SPCU_BOOT() {
+void SPCU_BOOT( void ) {
 #ifdef __PLAYERDEV__
 	//emulated
 	SPC_V = 0x00;
@@ -110,11 +110,11 @@ void SPCU_ECEN( uint8_t ENABLED ) {
 	SPC_COMMAND( CMD_ECEN, 0, ENABLED );
 }
 
-void SPCU_RET() {
+void SPCU_RET( void ) {
 	SPC_COMMAND( CMD_RET, 0, 0 );
 }
 
-void SPCU_RESET() {
+void SPCU_RESET( void ) {
 	SPC_COMMAND( CMD_RESET, 0, 0 );
 }
 

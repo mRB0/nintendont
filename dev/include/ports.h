@@ -66,10 +66,10 @@ enum {
 };
 
 // begin spc access
-void ports_spc_open();
+void ports_spc_open(void);
 
 // end spc access
-void ports_spc_close();
+void ports_spc_close(void);
 
 // read from spc port
 uint8_t ports_spc_read(uint8_t);
@@ -82,16 +82,16 @@ void ports_vrc6_write(uint8_t,uint8_t);
 
 // begin external flash access
 void ports_flash_open(uint24_t);
-void ports_flash_opencont();
+void ports_flash_opencont( void );
 
 // set access address
 void ports_flash_setaddr(uint24_t);
 
 // end external flash access
-void ports_flash_close();
+void ports_flash_close( void );
 
 // read a byte & increment pointer
-uint8_t ports_flash_read();
+uint8_t ports_flash_read( void );
 
 // set address and read a byte & increment pointer
 uint8_t ports_flash_readimm(uint24_t);
@@ -100,10 +100,10 @@ uint8_t ports_flash_readimm(uint24_t);
 uint16_t ports_flash_readimm16(uint24_t);
 
 // get read address
-uint24_t ports_flash_tell();
+uint24_t ports_flash_tell( void );
 
 // read a word & increment pointer
-uint16_t ports_flash_read16();
+uint16_t ports_flash_read16( void );
 
 #endif
 

@@ -6,7 +6,7 @@
 //
 // Reset VRC6
 //
-void VRC6_Reset();
+void VRC6_Reset( void );
 
 // 
 // Set VRC6 channel pitch

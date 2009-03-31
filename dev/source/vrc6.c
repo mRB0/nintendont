@@ -11,13 +11,14 @@ static uint8_t periods_h[3];
 // 2: DELTA
 static uint8_t volumes[3];
 
-void VRC6_Reset() {
+void VRC6_Reset( void ) {
 	uint8_t i;
 	for (i = 0; i < 3; i++ ) {
 		periods_l[i] = 0x0;
 		periods_h[i] = 0xFF;
 		volumes[i] = 0xFF;
 	}
+	//todo: reset vrc6 ports?
 }
 
 void VRC6_SetPitch( uint8_t channel, uint16_t period ) {

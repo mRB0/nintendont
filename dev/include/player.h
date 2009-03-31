@@ -8,7 +8,6 @@
 //-------------------------------------------------------------------------------
 typedef struct {
 //-------------------------------------------------------------------------------
-	uint8_t		Note;			// note index
 	uint16_t	Pitch;			// 7.6 note value
 	uint8_t		Volume;			// 0..64
 	uint8_t		VolumeScale;	// 0..64
@@ -30,9 +29,9 @@ typedef struct {
 	uint16_t	VE_Y;			// volume envelope
 	uint8_t		VE_Node;		//
 	uint8_t		VE_Tick;		//
-	uint16_t	PE_Y;			//
-	uint8_t		PE_Node;		//
-	uint8_t		PE_Tick;		//
+//	uint16_t	PE_Y;			//todo: panning envleope
+//	uint8_t		PE_Node;		//
+//	uint8_t		PE_Tick;		//
 	
 	uint16_t	Fadeout;		// a fadeout level
 	
@@ -42,9 +41,9 @@ enum {
 	CF_NOTE		=1,
 	CF_INSTR	=2,
 	CF_VCMD		=4,
-	CF_CMD		=8,
-	CF_NOTEOFF	=16,
-	CF_NOTECUT	=32
+	CF_CMD		=8
+	//CF_NOTEOFF	=16,
+	//CF_NOTECUT	=32
 };
 
 enum {
@@ -58,15 +57,15 @@ enum {
 extern "C" {
 #endif
 
-void Player_Init();
-void Player_Reset();
+void Player_Init( void );
+void Player_Reset( void );
 void Player_ChangePosition( uint8_t NewPosition );
-void Player_StartTimer();
-void Player_StopTimer();
+void Player_StartTimer( void );
+void Player_StopTimer( void );
 void Player_SetTempo( uint8_t NewTempo );
 void Player_Start( uint8_t ModuleIndex );
 void Player_SetIBank( rom uint8_t *InternalBankAddress );
-void Player_OnTick();
+void Player_OnTick( void );
 
 #ifdef __cplusplus
 }
