@@ -1,17 +1,19 @@
 #include "player.h"
 
-
 #ifdef __PLAYERDEV__
 /////////////////////////////////////////
 #include "emu_timer.h"
 #include "emu_mem.h"
 /////////////////////////////////////////
+#else
+
+#include "timers.h"
+
 #endif
 
 #include "ports.h"
 #include "spcunit.h"
 #include "vrc6.h"
-
 
 extern const rom uint16_t spc_ftab[];
 extern const rom uint16_t vrc6_ftab[];
@@ -114,7 +116,7 @@ enum {
 	PITCH_MAX = 107<<6
 };
 
-ChannelData Channels[11];
+extern ChannelData Channels[];
 
 static uint8_t ModTick;
 static uint8_t ModRow;
@@ -162,13 +164,13 @@ static uint8_t t_Volume;
 static uint8_t t_Panning;
 static uint16_t t_Pitch;
 
-static void UpdateChannels();
+static void UpdateChannels( void );
 static void UpdateChannel( uint8_t, uint8_t );
 static void ProcessVolumeCommand( ChannelData *ch );
 static void ProcessCommand( uint8_t );
 static void ProcessChannelAudio( uint8_t ch_index, uint8_t use_t );
 static void StartNewNote( ChannelData *ch );
-static void ReadPattern();
+static void ReadPattern( void );
 static void ResetVolume( ChannelData *ch );
 
 /*************************************************************************
@@ -176,7 +178,7 @@ static void ResetVolume( ChannelData *ch );
  *
  * Setup system
  *************************************************************************/
-void Player_Init() {
+void Player_Init( void ) {
 	SPCU_BOOT();
 	
 	SPCU_MVOL( INITIAL_SPC_VOLUME_L, INITIAL_SPC_VOLUME_R );
@@ -187,13 +189,13 @@ void Player_Init() {
  *
  * Stop playback and reset data.
  *************************************************************************/
-void Player_Reset() {
+void Player_Reset( void ) {
 	// Reset voices
 	uint8_t i;//, j;
 	
 	ModActive = 0;
 	for( i = 0; i < 11; i++ ) {
-		Channels[i].Note			= 0;
+		//Channels[i].Note			= 0;
 		Channels[i].Pitch			= 0;
 		Channels[i].Volume			= 0;
 		Channels[i].VolumeScale		= 0;
@@ -212,8 +214,9 @@ void Player_Reset() {
 
 		Channels[i].VE_Y			= 0;
 		Channels[i].VE_Node			= 0;
-		Channels[i].PE_Y			= 0;
-		Channels[i].PE_Node			= 0;
+		Channels[i].VE_Tick			= 0;
+//		Channels[i].PE_Y			= 0;
+//		Channels[i].PE_Node			= 0;
 
 		Channels[i].Fadeout			= 0;
 		
@@ -264,7 +267,7 @@ void Player_ChangePosition( uint8_t NewPosition ) {
  *
  * Start playback timer
  *************************************************************************/
-void Player_StartTimer() {
+void Player_StartTimer( void ) {
 
 	CloseTimer0();
 
@@ -279,7 +282,7 @@ void Player_StartTimer() {
  *
  * Stop playback timer
  *************************************************************************/
-void Player_StopTimer() {
+void Player_StopTimer( void ) {
 	
 	CloseTimer0();
 	TimerActive = 0;
@@ -351,7 +354,7 @@ void Player_Start( uint8_t ModuleIndex ) {
 	ports_flash_opencont();
 
 	Module = (rom IModuleData*)(IBank + ports_flash_readimm16( EBANK_IMOD_TABLE + ModuleIndex*2 ));
-	SampleTable = (uint16_t*)(ModuleAddr + IMOD_TABLE_START);
+	SampleTable = (rom uint16_t*)(ModuleAddr + IMOD_TABLE_START);
 	InstrumentTable = SampleTable + Module->SampleCount;
 
 	EModAddress = ports_flash_readimm16( EBANK_EMOD_TABLE + ModuleIndex*2 ) << 6;
@@ -439,7 +442,7 @@ void Player_SetIBank( rom uint8_t *InternalBankAddress ) {
  *
  * Update player routine (call every tick)
  *************************************************************************/
-void Player_OnTick() {
+void Player_OnTick( void ) {
 
 	// reset timer
 	WriteTimer0( TimerReload );
@@ -467,7 +470,7 @@ void Player_OnTick() {
 	}
 }
 
-static void UpdateChannels() {
+static void UpdateChannels( void ) {
 	uint8_t ch;
 	for( ch = 0; ch < 11; ch++ ) {
 		//if( ) {
@@ -566,8 +569,8 @@ static void ResetVolume( ChannelData *ch ) {
 	// reset envelopes
 	ch->VE_Node = 0;
 	ch->VE_Tick = 0;
-	ch->PE_Node = 0;
-	ch->PE_Tick = 0;
+//	ch->PE_Node = 0;
+//	ch->PE_Tick = 0;
 
 	ch->Cmem = 0;
 
@@ -687,7 +690,7 @@ enum {
 	PCMDMEM_SOFS,
 	PCMDMEM_EX,
 	PCMDMEM_VIB,
-	PCMDMEM_Q,
+	PCMDMEM_Q
 };
 
 static void ProcessCommandMemory( uint8_t ch_index ) {
@@ -761,9 +764,9 @@ static void StartNewNote( ChannelData *ch ) {
 static void ProcessChannelAudio( uint8_t ch_index, uint8_t use_t ) {
 
 	ChannelData *ch = Channels + ch_index;
-	Sample *samp;
-	Instrument *ins;
-	uint8_t VEV, PEV;
+	rom Sample *samp;
+	rom Instrument *ins;
+	uint8_t VEV;//, PEV; //todo:panning envelope
 	uint8_t vol = 0;
 	if( ch->Sample ) samp = (rom Sample*)(ModuleAddr + SampleTable[ch->Sample-1]);
 	if( ch->p_Instrument ) ins = (rom Instrument*)(ModuleAddr + InstrumentTable[ch->p_Instrument-1]);
@@ -917,7 +920,7 @@ static void ProcessChannelAudio( uint8_t ch_index, uint8_t use_t ) {
  * Read pattern data into channels
  * Sets PatternUpdateFlags for whichever channels have data
  ********************************************************************/
-static void ReadPattern() {
+static void ReadPattern( void ) {
 	uint8_t channelvar;
 	
 	PatternUpdateFlags = 0;

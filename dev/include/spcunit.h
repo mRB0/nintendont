@@ -10,7 +10,7 @@ extern "C" {
 /**********************************************************
  * BOOT spcunit
  **********************************************************/
-void SPCU_BOOT();
+void SPCU_BOOT(void);
 
 /**********************************************************
  * SPCU_LOAD( LOOP )
@@ -103,14 +103,14 @@ void SPCU_ECEN( uint8_t );
  * Return to processing.
  * (Make sure to call after all messages are transferred)
  **********************************************************/
-void SPCU_RET();
+void SPCU_RET( void );
 
 /**********************************************************
  * SPCU_RESET()
  *
  * Reset system. (clears memory)
  **********************************************************/
-void SPCU_RESET();
+void SPCU_RESET( void );
 
 /**********************************************************
  * SPCU_KOF( CHANNELS )

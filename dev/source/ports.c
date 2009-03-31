@@ -58,13 +58,13 @@ void port_write(uint16_t addr, uint8_t data) {
 }
 */
 
-void ports_spc_open() {
+void ports_spc_open( void ) {
 	if( FLASH_OPEN )
 		printf( "warning: opening spc when flash is open\n" );
 	SPC_OPEN = 1;
 }
 
-void ports_spc_close() {
+void ports_spc_close( void ) {
 	SPC_OPEN = 0;
 }
 
@@ -105,7 +105,7 @@ void ports_flash_open( uint24_t addr ) {
 	FLASH_ADDR = addr;
 }
 
-void ports_flash_opencont() {
+void ports_flash_opencont( void ) {
 	if( SPC_OPEN )
 		printf( "warning: opening flash when spc is opened.\n" );
 	FLASH_OPEN = 1;
@@ -120,11 +120,11 @@ void ports_flash_setaddr( uint24_t addr ) {
 	}
 }
 
-void ports_flash_close() {
+void ports_flash_close( void ) {
 	FLASH_OPEN = 0;
 }
 
-uint8_t ports_flash_read() {
+uint8_t ports_flash_read( void ) {
 	if( SPC_OPEN )
 		printf( "warning: reading from flash when spc is open.\n" );
 	if( FLASH_OPEN ){
@@ -162,7 +162,7 @@ uint16_t ports_flash_readimm16( uint24_t addr ) {
 	}
 }
 
-uint16_t ports_flash_read16() {
+uint16_t ports_flash_read16( void ) {
 	if( SPC_OPEN ) {
 		printf( "warning: reading 16 from flash when spc is open." );
 	}
@@ -175,7 +175,7 @@ uint16_t ports_flash_read16() {
 	}
 }
 
-uint24_t ports_flash_tell() {
+uint24_t ports_flash_tell( void ) {
 	return FLASH_ADDR;
 }
 
@@ -183,8 +183,13 @@ uint24_t ports_flash_tell() {
 
 // [real codes]
 
-//void ports_spc_open(); macro'd
-//void ports_spc_close(); macro'd
+void ports_spc_open( void ) {
+//	ACTIVATE_SPC();
+}
+
+void ports_spc_close( void ) {
+//	DEACTIVATE_SPC();
+}
 
 uint8_t ports_spc_read(uint8_t port) {
 	//insert codes
@@ -201,19 +206,40 @@ void ports_vrc6_write(uint8_t port, uint8_t data) {
 }
 
 
+
 void ports_flash_open( uint24_t addr ) {
 	//insert codes
 }
 
-void ports_flash_close() {
+void ports_flash_opencont() {
 	//insert codes
 }
 
-uint8_t ports_flash_read() {
+void ports_flash_setaddr() {
 	//insert codes
 }
 
-void ports_flash_readimm( uint24_t addr ) {
+void ports_flash_close( void ) {
+	//insert codes
+}
+
+uint8_t ports_flash_read( void ) {
+	//insert codes
+}
+
+uint8_t ports_flash_readimm( uint24_t addr ) {
+	//insert codes
+}
+
+uint16_t ports_flash_readimm16( uint24_t addr ) {
+	//insert codes
+}
+
+uint24_t ports_flash_tell( void ) {
+	//insert codes
+}
+
+uint16_t ports_flash_read16( void ) {
 	//insert codes
 }
 
