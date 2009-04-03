@@ -50,7 +50,13 @@ void port_write(uint24_t addr, uint8_t data)
 	TRIS_DATA = TRIS_OUTPUT;
 	LAT_DATA = data;
 	LAT_WE = 0;
-	//Delay100TCYx(1);
+	
+	// these delays are required for vrc6 when
+	// Fosc = 32 MHz and vrc6 = 2 MHz :(
+	Nop();
+	Nop();
+	
+	//Delay10TCYx(1);
 	
 	LAT_WE = 1;
 }
@@ -84,13 +90,13 @@ void vrc6_init(void)
 {
 	uint16_t i;
 	
-	for(i=0; i<100; i++)
-	{
-		
 	// delay some time to allow oscillator to settle
-	Delay100TCYx(255);
-	Delay100TCYx(255);
-	Delay100TCYx(255);
+	/*for(i=0; i<10; i++)
+	{
+		Delay100TCYx(255);
+		Delay100TCYx(255);
+		Delay100TCYx(255);
+	}*/
 	
 	TRIS_VRC6_CE = 0;
 	ACTIVATE_VRC6();
@@ -107,14 +113,11 @@ void vrc6_init(void)
 	port_write(0xf001, 0x00);
 	port_write(0xf002, 0x00);
 
-	DEACTIVATE_VRC6();
+	//DEACTIVATE_VRC6();
 	
 	// init vrc6 sound
-	Delay100TCYx(255);
-	Delay100TCYx(255);
-	Delay100TCYx(255);
 	
-	ACTIVATE_VRC6();
+	//ACTIVATE_VRC6();
 	
 	port_write(0x9000, 0x7f);
 	port_write(0x9001, 0x00);
@@ -129,7 +132,6 @@ void vrc6_init(void)
 	port_write(0xb002, 0x00);
 	
 	DEACTIVATE_VRC6();
-	}
 	
 }
 
@@ -249,7 +251,7 @@ void spc_test(void)
 void main(void)
 {
 	
-	uint8_t duty = 0x00;
+	uint8_t duty = 0xff;
 	
 	system_init();
 	
