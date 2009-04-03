@@ -3,28 +3,27 @@
 #include <p18f4620.h>
 
 #include <delays.h>
+#include <usart.h>
 
+#include "circbuf.h"
 #include "interrupts.h"
 #include "ports.h"
+#include "serial.h"
 
 void set_addr(uint24_t addr)
 {
 	LATA = addr & 0xff;
-	//LATAbits.LATA0 = (addr & 0x02) >> 1;
-	//LATAbits.LATA1 = addr & 0x01;
-	
-	LATBbits.LATB4 = (addr & 0x40) >> 6;
 	
 	LATB = ((addr >> (uint16_t)8) & 0x0f) | (LATB & 0xf0);
 	LATC = ((addr >> (uint16_t)12) & 0x0f) | (LATC & 0xf0);
 	
 	LATCbits.LATC5 = (addr >> 16) & 0x1;
 	
-	// XXX temporary, for testing
-	LATCbits.LATC6 = (addr >> 17) & 0x1;
+	// A17
+	LATBbits.LATB4 = (addr >> 17) & 0x1;
 	
-	Nop();
-	Nop();
+	//Nop();
+	//Nop();
 	
 }
 
@@ -53,6 +52,7 @@ void port_write(uint24_t addr, uint8_t data)
 	
 	// these delays are required for vrc6 when
 	// Fosc = 32 MHz and vrc6 = 2 MHz :(
+	Nop();
 	Nop();
 	Nop();
 	
@@ -188,7 +188,9 @@ void system_init(void)
 	spc_init();
 	vrc6_init();
 	
+	serial_init();
 	
+	ISR_enable();
 }
 
 void tester(void)
@@ -251,7 +253,8 @@ void spc_test(void)
 void main(void)
 {
 	
-	uint8_t duty = 0xff;
+	uint8_t duty = 0x0;
+	unsigned char c;
 	
 	system_init();
 	
@@ -260,7 +263,30 @@ void main(void)
 	
 	for(;;)
 	{
-		duty = (duty + 1) % 0x8;
+		
+		ISR_disable();
+		while (_interrupts.rx)
+		{
+			_interrupts.rx = 0;
+			ISR_enable();
+			
+			while(!CIRCBUF_EMPTY(_rxbuf))
+			{
+				CIRCBUF_POPCHAR_INLINE(_rxbuf, c);
+				Nop();
+				Nop();
+				if ('a' == c)
+				{
+					duty = (duty + 1) % 0x8;
+				}
+			}
+			
+			ISR_disable();
+		}
+		ISR_enable();
+	
+		putcUSART(duty + 'A');
+		
 		
 		// set duty
 		

@@ -9,7 +9,8 @@ typedef union interrupts
 {
 	struct
 	{
-		uint8_t unused  :8;
+		uint8_t rx      :1;
+		uint8_t unused  :7;
 	};
 	uint8_t all;
 } INTERRUPTS;
