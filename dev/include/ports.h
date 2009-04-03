@@ -11,9 +11,8 @@
 #define TRIS_SPC_CE	TRISCbits.TRISC4
 #define LAT_SPC_CE	LATCbits.LATC4
 
-// xxx temporary port
-#define TRIS_FL0_CE	TRISCbits.TRISC7
-#define LAT_FL0_CE	LATCbits.LATC7
+#define TRIS_FL0_CE	TRISBbits.TRISB5
+#define LAT_FL0_CE	LATBbits.LATB5
 
 // /SPC_RESET moved to A7 (active high)
 //#define TRIS_SPC_RESET	TRISCbits.TRISC5

@@ -1,6 +1,8 @@
 #include <p18f4620.h>
 
+#include "serial.h"
 #include "interrupts.h"
+
 
 void low_isr(void);
 void high_isr(void);
@@ -34,7 +36,10 @@ void low_isr(void)
 #pragma interrupt high_isr isrhigh_tmp //save=PRODH,PRODL,INDF0,POSTDEC0,POSTINC0,PREINC0,PLUSW0,section("MATH_DATA"),section(".tmpdata")
 void high_isr(void)
 {
-	/* no interrupts */
+	if (PIE1bits.RCIE && PIR1bits.RCIF)
+	{
+		serial_ISR();
+	}
 }
 
 /*

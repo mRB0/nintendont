@@ -1,5 +1,4 @@
 *** pending changes to code/hardware:
-    - RA6 used for addressing again (frees RB4)
     - add serial port
 
 *** possible changes:
@@ -8,11 +7,12 @@
 PORTA         = A7..0
 
 PORTB[7..5]   = programming pins (FREE)
-PORTB[4]      = FREE
+PORTB[5]      = PGM (unused) and /FL0_CS
+PORTB[4]      = A17
 PORTB[3..0]   = A11..A8
 
-PORTC[7]      = UART RX (temp: /FL0_CS)
-PORTC[6]      = UART TX (temp: A17)
+PORTC[7]      = UART RX
+PORTC[6]      = UART TX
 PORTC[5]      = A16
 PORTC[4]      = /SPC_CE
 PORTC[3..0]   = A15..A12
