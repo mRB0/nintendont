@@ -50,8 +50,7 @@ void port_write(uint24_t addr, uint8_t data)
 	TRIS_DATA = TRIS_OUTPUT;
 	LAT_DATA = data;
 	LAT_WE = 0;
-	Nop();
-	Nop();
+	//Delay100TCYx(1);
 	
 	LAT_WE = 1;
 }
@@ -83,7 +82,17 @@ void spc_init(void)
 
 void vrc6_init(void)
 {
-	TRIS_VRC6_CE = 1;
+	uint16_t i;
+	
+	for(i=0; i<100; i++)
+	{
+		
+	// delay some time to allow oscillator to settle
+	Delay100TCYx(255);
+	Delay100TCYx(255);
+	Delay100TCYx(255);
+	
+	TRIS_VRC6_CE = 0;
 	ACTIVATE_VRC6();
 	
 	// init vrc6 mapping stuff
@@ -97,8 +106,15 @@ void vrc6_init(void)
 	port_write(0xf000, 0x00);
 	port_write(0xf001, 0x00);
 	port_write(0xf002, 0x00);
+
+	DEACTIVATE_VRC6();
 	
 	// init vrc6 sound
+	Delay100TCYx(255);
+	Delay100TCYx(255);
+	Delay100TCYx(255);
+	
+	ACTIVATE_VRC6();
 	
 	port_write(0x9000, 0x7f);
 	port_write(0x9001, 0x00);
@@ -107,13 +123,13 @@ void vrc6_init(void)
 	port_write(0xa000, 0x7f);
 	port_write(0xa001, 0x00);
 	port_write(0xa002, 0x00);
-	
+
 	port_write(0xb000, 0x3f);
 	port_write(0xb001, 0x00);
 	port_write(0xb002, 0x00);
 	
 	DEACTIVATE_VRC6();
-	
+	}
 	
 }
 
@@ -136,7 +152,7 @@ void flash_test(void)
 void system_init(void)
 {
 	// 8 MHz: IRCF2:0 = 0b111
-	OSCCONbits.IRCF0 = 0;
+	OSCCONbits.IRCF0 = 1;
 	OSCCONbits.IRCF1 = 1;
 	OSCCONbits.IRCF2 = 1;
 	OSCCONbits.IDLEN = 1;
@@ -170,7 +186,6 @@ void system_init(void)
 	spc_init();
 	vrc6_init();
 	
-	Delay100TCYx(255);
 	
 }
 
@@ -259,14 +274,14 @@ void main(void)
 		port_write(0x9001, 0xe7);
 		port_write(0x9002, 0x82);
 		
-		Delay10KTCYx(50);
+		Delay10KTCYx(75);
 		
 		port_write(0xa001, 0xe7);
 		port_write(0xa002, 0x82);
 		port_write(0x9001, 0x72);
 		port_write(0x9002, 0x82);
 		
-		Delay10KTCYx(50);
+		Delay10KTCYx(75);
 		
 		port_write(0xa001, 0x72);
 		port_write(0xa002, 0x82);
