@@ -18,7 +18,6 @@ const char *USAGE = "\n"
 #include <stdio.h>
 
 #include "stdint.h"
-#include "player.h"
 #include "RtAudio.h"
 
 #include "player.h"
