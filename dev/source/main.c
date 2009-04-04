@@ -9,57 +9,7 @@
 #include "interrupts.h"
 #include "ports.h"
 #include "serial.h"
-
-void set_addr(uint24_t addr)
-{
-	LATA = addr & 0xff;
-	
-	LATB = ((addr >> (uint16_t)8) & 0x0f) | (LATB & 0xf0);
-	LATC = ((addr >> (uint16_t)12) & 0x0f) | (LATC & 0xf0);
-	
-	LATCbits.LATC5 = (addr >> 16) & 0x1;
-	
-	// A17
-	LATBbits.LATB4 = (addr >> 17) & 0x1;
-	
-	//Nop();
-	//Nop();
-	
-}
-
-uint8_t port_read(uint24_t addr)
-{
-	uint8_t data;
-	
-	set_addr(addr);
-	TRIS_DATA = TRIS_INPUT;
-	
-	LAT_OE = 0;
-	//Delay10TCYx(100);
-	
-	data = PORT_DATA;
-	LAT_OE = 1;
-	
-	return data;
-}
-	
-void port_write(uint24_t addr, uint8_t data)
-{
-	set_addr(addr);
-	TRIS_DATA = TRIS_OUTPUT;
-	LAT_DATA = data;
-	LAT_WE = 0;
-	
-	// these delays are required for vrc6 when
-	// Fosc = 32 MHz and vrc6 = 2 MHz :(
-	Nop();
-	Nop();
-	Nop();
-	
-	//Delay10TCYx(1);
-	
-	LAT_WE = 1;
-}
+#include "flash.h"
 	
 
 /*
@@ -135,22 +85,6 @@ void vrc6_init(void)
 	
 }
 
-void flash_test(void)
-{
-	uint8_t sig_mfr, sig_dev;
-	ACTIVATE_FL0();
-	
-	port_write(0x0, 0x90);
-	sig_mfr = port_read(0x0);
-	
-	port_write(0x0, 0x90);
-	sig_dev = port_read(0x1);
-	
-	DEACTIVATE_FL0();
-	
-	//for(;;);
-}
-
 void system_init(void)
 {
 	// 8 MHz: IRCF2:0 = 0b111
@@ -178,6 +112,9 @@ void system_init(void)
 	TRIS_DATA = TRIS_INPUT;
 	
 	DEACTIVATE_FL0();
+	DEACTIVATE_VRC6();
+	DEACTIVATE_SPC();
+	
 	TRIS_FL0_CE = 0;
 	
 	LAT_WE = 1;
@@ -185,6 +122,7 @@ void system_init(void)
 	TRIS_WE = 0;
 	TRIS_OE = 0;
 	
+	flash_init();
 	spc_init();
 	vrc6_init();
 	

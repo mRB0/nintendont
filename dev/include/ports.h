@@ -13,6 +13,13 @@
 
 #define TRIS_FL0_CE	TRISBbits.TRISB5
 #define LAT_FL0_CE	LATBbits.LATB5
+/*
+#define TRIS_SPC_CE	TRISBbits.TRISB5
+#define LAT_SPC_CE	LATBbits.LATB5
+
+#define TRIS_FL0_CE	TRISCbits.TRISC4
+#define LAT_FL0_CE	LATCbits.LATC4
+*/
 
 // /SPC_RESET moved to A7 (active high)
 //#define TRIS_SPC_RESET	TRISCbits.TRISC5
@@ -39,12 +46,6 @@
 #define ACTIVATE_SPC()			LAT_SPC_CE = 0
 #define DEACTIVATE_SPC()		LAT_SPC_CE = 1
 
-#define ACTIVATE_FL0()			LAT_FL0_CE = 0
-#define DEACTIVATE_FL0()		LAT_FL0_CE = 1
-
-#define ACTIVATE_FL1()			LAT_FL1_CE = 0
-#define DEACTIVATE_FL1()		LAT_FL1_CE = 1
-
 #endif
 
 enum {
@@ -63,6 +64,13 @@ enum {
 	PORT_VRC6B1		=0x09,
 	PORT_VRC6B2		=0x0A
 };
+
+void set_addr(uint24_t addr);
+void port_putc(uint8_t data);
+uint8_t port_getc(void);
+
+uint8_t port_read(uint24_t addr);
+void port_write(uint24_t addr, uint8_t data);
 
 // begin spc access
 void ports_spc_open(void);
