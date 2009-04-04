@@ -13,7 +13,7 @@
   eon: echo enable per SPC channel, 
        specify as bit string ie "10100011" for echo on voices 1, 3, 7, and 8
   e0..7: echo FIR coefficient
-       by default e0 is 127 and the rest are zero
+       by default e0 is 100 and the rest are zero
 
   sample options
   

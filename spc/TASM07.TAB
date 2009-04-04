@@ -7,6 +7,7 @@
 /* by mukunda
 /*
 /* NOTE! mov1 *,C  * = 13-bit address + (bit<<13)
+/* thanks to Lint for spotting a couple errors
 /************************************************
 
 ADC     A,(X)   86 1 NOP 1
@@ -54,7 +55,7 @@ ROL     *       2B 2 NOP 1
 
 ROR     A       7C 1 NOP 1
 ROR     *,X     7B 2 NOP 1
-ROR     *       6C 3 NOP 1
+ROR     !*      6C 3 NOP 1
 ROR     *       6B 2 NOP 1
 
 BBC0    *,*     13 3 CREL 1
@@ -202,8 +203,8 @@ MOV     Y,*+X   FB 2 NOP 1
 MOV     A,!*+X  F5 3 NOP 1
 MOV     A,*+X   F4 2 NOP 1
 MOV     A,!*+Y  F6 3 NOP 1
-MOV     *,A     C4 2 NOP 1
 MOV     !*,A    C5 3 NOP 1
+MOV     *,A     C4 2 NOP 1
 MOV     !*,X    C9 3 NOP 1
 MOV     *,X     D8 2 NOP 1
 MOV     !*,Y     CC 3 NOP 1
