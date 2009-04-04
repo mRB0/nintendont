@@ -250,9 +250,12 @@ void spc_test(void)
 	
 }
 
+const rom uint16_t _frequencies[] = { 626, 590, 557, 526, 496, 468, 442, 417, 394, 372, 351, 331, 313 };
+
 void main(void)
 {
 	
+	uint16_t freq = 0;
 	uint8_t duty = 0x0;
 	unsigned char c;
 	
@@ -260,6 +263,94 @@ void main(void)
 	
 	//spc_test();
 	//flash_test();
+	
+	
+	// keyboard
+	for(;;)
+	{
+		ISR_disable();
+		while (_interrupts.rx)
+		{
+			_interrupts.rx = 0;
+			ISR_enable();
+			
+			ACTIVATE_VRC6();
+			
+			while(!CIRCBUF_EMPTY(_rxbuf))
+			{
+				CIRCBUF_POPCHAR_INLINE(_rxbuf, c);
+				switch(c)
+				{
+					case '`':
+						duty = (duty + 1) % 0x8;
+						port_write(0x9000, 0x0f | (duty << 4));
+						break;
+					case 'q':
+						freq = _frequencies[0];
+						break;
+					case '2':
+						freq = _frequencies[1];
+						break;
+					case 'w':
+						freq = _frequencies[2];
+						break;
+					case '3':
+						freq = _frequencies[3];
+						break;
+					case 'e':
+						freq = _frequencies[4];
+						break;
+					case 'r':
+						freq = _frequencies[5];
+						break;
+					case '5':
+						freq = _frequencies[6];
+						break;
+					case 't':
+						freq = _frequencies[7];
+						break;
+					case '6':
+						freq = _frequencies[8];
+						break;
+					case 'y':
+						freq = _frequencies[9];
+						break;
+					case '7':
+						freq = _frequencies[10];
+						break;
+					case 'u':
+						freq = _frequencies[11];
+						break;
+					case 'i':
+						freq = _frequencies[12];
+						break;
+					case ' ':
+						freq = 0;
+						break;
+				}
+				if (freq == 0)
+				{
+					port_write(0x9002, 0x00);
+				}
+				else
+				{
+					port_write(0x9001, freq);
+					port_write(0x9002, 0x80 | (0xf & (freq >> 8)));
+				}
+				//port_write(0x9001, 0xa7);
+				//port_write(0x9002, 0x83);
+				
+			}
+			
+			DEACTIVATE_VRC6();
+			
+			ISR_disable();
+		}
+		ISR_enable();
+	}
+	
+	
+	// play fun tones
 	
 	for(;;)
 	{
