@@ -1,6 +1,7 @@
 
 #ifndef __PLAYERDEV__
 #include <p18f4620.h>
+#include <delays.h>
 #endif
 
 #include "ports.h"
@@ -15,6 +16,7 @@
 uint8_t SPC_OPEN;
 uint8_t FLASH_OPEN;
 uint24_t FLASH_ADDR;
+
 
 void ports_spc_open( void ) {
 	if( FLASH_OPEN )
@@ -200,5 +202,72 @@ uint24_t ports_flash_tell( void ) {
 uint16_t ports_flash_read16( void ) {
 	//insert codes
 }
+
+/* begin mrb */
+
+void set_addr(uint24_t addr)
+{
+	LATA = addr & 0xff;
+	
+	LATB = ((addr >> (uint16_t)8) & 0x0f) | (LATB & 0xf0);
+	LATC = ((addr >> (uint16_t)12) & 0x0f) | (LATC & 0xf0);
+	
+	LATCbits.LATC5 = (addr >> 16) & 0x1;
+	
+	// A17
+	LATBbits.LATB4 = (addr >> 17) & 0x1;
+	
+	//Nop();
+	//Nop();
+	
+}
+
+uint8_t port_getc(void)
+{
+	uint8_t data;
+	
+	TRIS_DATA = TRIS_INPUT;
+	
+	LAT_OE = 0;
+	Delay10TCYx(100);
+	
+	data = PORT_DATA;
+	LAT_OE = 1;
+	
+	return data;
+}
+
+uint8_t port_read(uint24_t addr)
+{
+	set_addr(addr);
+	
+	return port_getc();
+}
+	
+void port_putc(uint8_t data)
+{
+	TRIS_DATA = TRIS_OUTPUT;
+	LAT_DATA = data;
+	LAT_WE = 0;
+	
+	// these delays are required for vrc6 when
+	// Fosc = 32 MHz and vrc6 = 2 MHz :(
+	Nop();
+	Nop();
+	Nop();
+	
+	//Delay10TCYx(1);
+	
+	LAT_WE = 1;
+}
+
+void port_write(uint24_t addr, uint8_t data)
+{
+	set_addr(addr);
+	port_putc(data);
+}
+
+/* end mrb */
+
 
 #endif
