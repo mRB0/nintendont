@@ -564,7 +564,7 @@ _update_loop:
 	beq	_no_offset		; (skip if 0)
 					;---------------------------------
 	mov	y, #0			; reset channel offset
-	mov	channel_ofs+y, #0	;
+	mov	channel_ofs+x, y	;
 					;---------------------------------
 	mov	y, #144			; m0,m1 = offset * 144 (256/16*9 samples)
 	mul	ya			;
