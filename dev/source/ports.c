@@ -239,7 +239,9 @@ void set_addr(uint24_t addr)
 	LATB = ((addr >> (uint16_t)8) & 0x0f) | (LATB & 0xf0);
 	LATC = ((addr >> (uint16_t)12) & 0x0f) | (LATC & 0xf0);
 	
-	LATCbits.LATC5 = (addr >> 16) & 0x1;
+	// A16
+	//LATCbits.LATC5 = (addr >> 16) & 0x1;
+	LATEbits.LATE2 = (addr >> 16) & 0x1;
 	
 	// A17
 	LATBbits.LATB4 = (addr >> 17) & 0x1;

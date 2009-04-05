@@ -1,11 +1,12 @@
 #include <delays.h>
 #include <usart.h>
+#include <stdio.h>
 
 #include "serial.h"
 #include "flash.h"
 #include "ports.h"
 
-void flash_init(void)
+int8_t flash_init(void)
 {
 	
 	ACTIVATE_FL0();
@@ -15,10 +16,10 @@ void flash_init(void)
 	DEACTIVATE_FL0();
 	
 	
-	flash_test();
+	return flash_test();
 }
 
-void flash_test(void)
+int8_t flash_test(void)
 {
 	uint8_t sig_mfr, sig_dev;
 	
@@ -36,6 +37,15 @@ void flash_test(void)
 	
 	DEACTIVATE_FL0();
 	//for(;;);
+	
+	if (sig_mfr == 0x31 && sig_dev == 0xbd)
+	{
+		return 0;
+	}
+	else
+	{
+		return 1;
+	}
 }
 
 /*
@@ -64,8 +74,9 @@ int8_t flash_pgm_byte(uint8_t flash_chip, uint24_t addr, uint8_t data)
 	
 	plscnt = 0;
 	
-	if ((addr % 0x10000) == 0)
+	if ((addr % 0x8000) == 0)
 	{
+		printf("[pgmbyte] addr=%05Hx\n\r", addr);
 		Nop();
 		Nop();
 	}
@@ -175,6 +186,13 @@ int8_t flash_erase(uint8_t flash_chip)
 			if (0xff == readdata)
 			{
 				addr++;
+				
+				if ((addr % 0x4000) == 0)
+				{
+					printf("[erase  ] addr=%05Hx, plscnt=%d\n\r", addr, plscnt);
+					Nop();
+					Nop();
+				}
 			}
 			else
 			{
@@ -186,6 +204,7 @@ int8_t flash_erase(uint8_t flash_chip)
 	
 	if (FLASH_ERA_PLSCNT_MAX == plscnt)
 	{
+		printf("[erase  ] BAILING at addr=%05Hx\n\r", addr);
 		// error, abort
 		if (flash_chip == 0)
 		{

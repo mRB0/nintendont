@@ -4,6 +4,8 @@
 
 #include <delays.h>
 #include <usart.h>
+#include <stdio.h>
+
 
 #include "circbuf.h"
 #include "interrupts.h"
@@ -122,9 +124,9 @@ void system_init(void)
 	TRIS_WE = 0;
 	TRIS_OE = 0;
 	
-	flash_init();
 	spc_init();
 	vrc6_init();
+	// xxx moved to main // flash_init();
 	
 	serial_init();
 	
@@ -192,42 +194,69 @@ const rom uint16_t _frequencies[] = { 626, 590, 557, 526, 496, 468, 442, 417, 39
 
 void main(void)
 {
+	int i, j, k;
 	
 	uint16_t freq = 0;
 	uint8_t duty = 0x0;
 	unsigned char c;
 	
-	int8_t rc1, rc2;
+	int8_t rc1=0, rc2=-1;
 	
 	system_init();
 	
 	//spc_test();
 	//flash_test();
 	
-	set_addr(0x3ffff);
+	set_addr(0x00001 << 9);
+	set_addr(0x08000);
+	for(;;);
+	
 	TRIS_DATA = 0x0;
-	LAT_DATA = 0xff;
-	
-	TRISBbits.TRISB7 = 0;
-	LATBbits.LATB7 = 0;
-	TRISBbits.TRISB6 = 0;
-	LATBbits.LATB6 = 1;
-	
-	Delay100TCYx(100);
+	//LAT_DATA = 0x01 << 3;
 	
 	putrsUSART("ok go\n\r");
 	
-	for(;;)
+	for(i=0, j=0; ; i=(i+1)%8, j=(j+1)%18)
 	{
+		LAT_DATA = 0x01 << i;
+		set_addr(0x00001 << j);
 		
+		for(k=0; k<150; k++)
+		{
+			Delay100TCYx(255);
+		}
 	}		
+	
+	printf("\r\r\n\n************\n\r\n\r");
+	
+	printf("flash beginning\n\r");
+	
+	rc1 = flash_init();
+	
+	printf("init done, rc = 0x%02hhx\n\r", rc1);
+
+	if (rc1 != 0)
+	{
+		printf("BAILING because flash init failed\n\r");
+		for(;;);
+	}
 	
 	rc1 = flash_pgm_byte(0x0, 0x0, 0xde);
 	
-	rc2 = flash_erase(0);
+	printf("pgmbyte done, rc = 0x%02hhx\n\r", rc1);
+	
+	if (rc1 == 0x00)
+	{
+		rc2 = flash_erase(0);
+		
+		printf("erase done, rc = 0x%02hhx\n\r", rc2);
+	}
 	
 	Nop();
 	Nop();
+	
+	putrsUSART("done recording\n\r");
+	//putrsUSART("
 	
 	for(;;);
 	
