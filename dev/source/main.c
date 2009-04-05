@@ -181,9 +181,9 @@ void spc_test(void)
 		
 		Nop();
 		Nop();
+	
+	
 	} while(data != 0xcc);
-	
-	
 	DEACTIVATE_SPC();
 	
 }
@@ -197,11 +197,39 @@ void main(void)
 	uint8_t duty = 0x0;
 	unsigned char c;
 	
+	int8_t rc1, rc2;
+	
 	system_init();
 	
 	//spc_test();
 	//flash_test();
 	
+	set_addr(0x3ffff);
+	TRIS_DATA = 0x0;
+	LAT_DATA = 0xff;
+	
+	TRISBbits.TRISB7 = 0;
+	LATBbits.LATB7 = 0;
+	TRISBbits.TRISB6 = 0;
+	LATBbits.LATB6 = 1;
+	
+	Delay100TCYx(100);
+	
+	putrsUSART("ok go\n\r");
+	
+	for(;;)
+	{
+		
+	}		
+	
+	rc1 = flash_pgm_byte(0x0, 0x0, 0xde);
+	
+	rc2 = flash_erase(0);
+	
+	Nop();
+	Nop();
+	
+	for(;;);
 	
 	// keyboard
 	for(;;)

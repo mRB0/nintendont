@@ -8,7 +8,7 @@
 
 
 //#pragma config OSC = INTIO67
-#pragma config OSC = INTIO7
+#pragma config OSC = INTIO67
 #pragma config FCMEN = OFF
 #pragma config IESO = OFF
 #pragma config PWRT = OFF

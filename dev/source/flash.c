@@ -103,7 +103,7 @@ int8_t flash_pgm_byte(uint8_t flash_chip, uint24_t addr, uint8_t data)
 	#ifdef LAT_FL1_CE
 	else
 	{
-			DEACTIVATE_FL1();
+		DEACTIVATE_FL1();
 	}
 	#endif
 	return 0;
@@ -119,18 +119,7 @@ int8_t flash_erase(uint8_t flash_chip)
 	uint24_t addr;
 	uint8_t readdata;
 	int8_t rc;
-	
-	if (flash_chip == 0)
-	{
-		ACTIVATE_FL0();
-	}
-#ifdef LAT_FL1_CE
-	else
-	{
-		ACTIVATE_FL1();
-	}
-#endif
-	
+		
 	// first, program all bytes to 0x00
 	for(addr = 0; addr < FLASHSIZE; addr++)
 	{
@@ -151,6 +140,17 @@ int8_t flash_erase(uint8_t flash_chip)
 		}
 	}
 	
+	// flash_pgm_byte deactivates fl0 when finished
+	if (flash_chip == 0)
+	{
+		ACTIVATE_FL0();
+	}
+#ifdef LAT_FL1_CE
+	else
+	{
+		ACTIVATE_FL1();
+	}
+#endif
 	
 	// next, start erase
 	addr = 0;

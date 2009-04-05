@@ -5,6 +5,7 @@
 #endif
 
 #include "ports.h"
+#include "flash.h"
 
 #ifdef __PLAYERDEV__
 
@@ -143,6 +144,8 @@ uint24_t ports_flash_tell( void ) {
 
 // [real codes]
 
+uint24_t _flash_addr;
+
 void ports_spc_open( void ) {
 	ACTIVATE_SPC();
 }
@@ -152,55 +155,79 @@ void ports_spc_close( void ) {
 }
 
 uint8_t ports_spc_read(uint8_t port) {
-	//insert codes
+	LATA = port;
+	return port_getc();
 }
 
 void ports_spc_write(uint8_t port, uint8_t data) {
-	//insert codes
+	LATA = port;
+	port_putc(data);
 }
 
 
 
 void ports_vrc6_write(uint8_t port, uint8_t data) {
 	//insert codes, port is 0,1,2,4,5,6,8,9,10
+	LATA = port & 0x3;
+	LATCbits.LATC0 = (port >> 2) & 0x1;
+	LATCbits.LATC1 = (port >> 3) & 0x1;
+	LATCbits.LATC2 = 0;
+	
+	port_putc(data);
 }
 
 
 
 void ports_flash_open( uint24_t addr ) {
-	//insert codes
+	ACTIVATE_FL0();
+	_flash_addr = addr;
+	set_addr(addr);
 }
 
 void ports_flash_opencont() {
-	//insert codes
+	ACTIVATE_FL0();
 }
 
-void ports_flash_setaddr() {
-	//insert codes
+void ports_flash_setaddr( uint24_t addr ) {
+	_flash_addr = addr;
 }
 
 void ports_flash_close( void ) {
-	//insert codes
+	DEACTIVATE_FL0();
 }
 
 uint8_t ports_flash_read( void ) {
-	//insert codes
+	set_addr(_flash_addr);
+	_flash_addr++;
+	return port_getc();
 }
 
 uint8_t ports_flash_readimm( uint24_t addr ) {
-	//insert codes
+	set_addr(addr);
+	_flash_addr = addr+1;
+	return port_getc();
 }
 
 uint16_t ports_flash_readimm16( uint24_t addr ) {
-	//insert codes
+	uint16_t data;
+	
+	data = ((uint16_t)port_read(addr+1) << 8) | ((uint16_t)port_read(addr));
+	
+	_flash_addr = addr+2;
+	return data;
 }
 
 uint24_t ports_flash_tell( void ) {
-	//insert codes
+	return _flash_addr;
 }
 
 uint16_t ports_flash_read16( void ) {
-	//insert codes
+	uint16_t data;
+	
+	data = ((uint16_t)port_read(_flash_addr+1) << 8) | ((uint16_t)port_read(_flash_addr));
+	
+	_flash_addr += 2;
+	return data;
 }
 
 /* begin mrb */
@@ -229,7 +256,7 @@ uint8_t port_getc(void)
 	TRIS_DATA = TRIS_INPUT;
 	
 	LAT_OE = 0;
-	Delay10TCYx(100);
+	//Delay10TCYx(100);
 	
 	data = PORT_DATA;
 	LAT_OE = 1;
