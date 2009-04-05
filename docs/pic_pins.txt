@@ -1,6 +1,3 @@
-*** pending changes to code/hardware:
-    - add serial port
-
 *** possible changes:
     - 2-to-4 decoder for CE lines
 
@@ -13,7 +10,7 @@ PORTB[3..0]   = A11..A8
 
 PORTC[7]      = UART RX
 PORTC[6]      = UART TX
-PORTC[5]      = A16
+PORTC[5]      = A16 (moved to RE2)
 PORTC[4]      = /SPC_CE
 PORTC[3..0]   = A15..A12
 

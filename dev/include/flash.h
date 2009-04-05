@@ -27,7 +27,7 @@
 int8_t flash_pgm_byte(uint8_t which_chip, uint24_t addr, uint8_t data);
 int8_t flash_erase(uint8_t flash_chip);
 
-void flash_init(void);
-void flash_test(void);
+int8_t flash_init(void);
+int8_t flash_test(void);
 
 #endif
