@@ -20,8 +20,10 @@ const char USAGE[] = {
 
 int main( int argc, char *argv[] ) {
 	
-	if( argc < 2 )
+	if( argc < 2 ) {
 		printf( USAGE );
+		return 0;
+	}
 	
 	TiXmlDocument doc( argv[1] );
 	doc.LoadFile();
