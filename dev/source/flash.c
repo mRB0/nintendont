@@ -5,6 +5,7 @@
 #include "serial.h"
 #include "flash.h"
 #include "ports.h"
+#include "interrupts.h"
 
 int8_t flash_init(void)
 {
@@ -31,6 +32,8 @@ int8_t flash_test(void)
 	
 	port_write(0x0, 0x90);
 	sig_dev = port_read(0x1);
+	
+	printf("[flash  ] sig_mfr=%02hhx, sig_dev=%02hhx\n\r", sig_mfr, sig_dev);
 	
 	Nop();
 	Nop();
@@ -67,7 +70,8 @@ int8_t flash_pgm_byte(uint8_t flash_chip, uint24_t addr, uint8_t data)
 		ACTIVATE_FL1();
 	}
 #endif
-
+	ISR_disable();
+	
 	//_pgm_calls++;
 	
 	set_addr(addr);
@@ -94,6 +98,14 @@ int8_t flash_pgm_byte(uint8_t flash_chip, uint24_t addr, uint8_t data)
 	if (FLASH_PGM_PLSCNT_MAX == plscnt)
 	{
 		// error, abort
+		if (data != 0xff)
+		{
+			flash_pgm_byte(flash_chip, addr, 0xff);
+			flash_pgm_byte(flash_chip, addr, 0xff);
+			flash_reset();
+		}
+		
+		ISR_enable();
 		if (flash_chip == 0)
 		{
 			DEACTIVATE_FL0();
@@ -107,6 +119,7 @@ int8_t flash_pgm_byte(uint8_t flash_chip, uint24_t addr, uint8_t data)
 		return -1;
 	}
 	
+	ISR_enable();
 	if (flash_chip == 0)
 	{
 		DEACTIVATE_FL0();
@@ -130,26 +143,18 @@ int8_t flash_erase(uint8_t flash_chip)
 	uint24_t addr;
 	uint8_t readdata;
 	int8_t rc;
-		
+	
 	// first, program all bytes to 0x00
 	for(addr = 0; addr < FLASHSIZE; addr++)
 	{
 		rc = flash_pgm_byte(flash_chip, addr, 0x00);
 		if (rc < 0)
 		{
-			if (flash_chip == 0)
-			{
-				DEACTIVATE_FL0();
-			}
-			#ifdef LAT_FL1_CE
-			else
-			{
-				DEACTIVATE_FL1();
-			}
-			#endif
 			return -1;
 		}
 	}
+	
+	ISR_disable();
 	
 	// flash_pgm_byte deactivates fl0 when finished
 	if (flash_chip == 0)
@@ -164,28 +169,29 @@ int8_t flash_erase(uint8_t flash_chip)
 #endif
 	
 	// next, start erase
+	plscnt = 0;
 	addr = 0;
 	set_addr(addr);
-	
-	plscnt = 0;
 	
 	do
 	{
 		port_putc(0x20); // erase setup
 		port_putc(0x20); // erase GO!
 		
+		//wait10ms();
 		wait10ms();
 		
 		do
 		{
-			set_addr(addr);
 			port_putc(0xa0); // erase verify
 			wait6us();
 			readdata = port_getc();
 			
 			if (0xff == readdata)
 			{
+				plscnt = 0;
 				addr++;
+				set_addr(addr);
 				
 				if ((addr % 0x4000) == 0)
 				{
@@ -200,12 +206,18 @@ int8_t flash_erase(uint8_t flash_chip)
 				break;
 			}
 		} while(addr < FLASHSIZE);
-	} while((addr < FLASHSIZE) && ((++plscnt) < FLASH_ERA_PLSCNT_MAX));
+	} while((addr < FLASHSIZE) && (plscnt < FLASH_ERA_PLSCNT_MAX));
 	
 	if (FLASH_ERA_PLSCNT_MAX == plscnt)
 	{
 		printf("[erase  ] BAILING at addr=%05Hx\n\r", addr);
+		
+		flash_pgm_byte(flash_chip, addr, 0xff);
+		flash_pgm_byte(flash_chip, addr, 0xff);
+		flash_reset();
+		
 		// error, abort
+		ISR_enable();
 		if (flash_chip == 0)
 		{
 			DEACTIVATE_FL0();
@@ -221,6 +233,7 @@ int8_t flash_erase(uint8_t flash_chip)
 	
 	flash_set_readmode();
 
+	ISR_enable();
 	if (flash_chip == 0)
 	{
 		DEACTIVATE_FL0();

@@ -194,7 +194,8 @@ const rom uint16_t _frequencies[] = { 626, 590, 557, 526, 496, 468, 442, 417, 39
 
 void main(void)
 {
-	int i, j, k;
+	int i, k;
+	uint24_t j=1;
 	
 	uint16_t freq = 0;
 	uint8_t duty = 0x0;
@@ -207,29 +208,87 @@ void main(void)
 	//spc_test();
 	//flash_test();
 	
+	/*
 	set_addr(0x00001 << 9);
 	set_addr(0x08000);
 	for(;;);
+	*/
 	
 	TRIS_DATA = 0x0;
 	//LAT_DATA = 0x01 << 3;
 	
 	putrsUSART("ok go\n\r");
+	/*
 	
-	for(i=0, j=0; ; i=(i+1)%8, j=(j+1)%18)
+	for(i=0; ; i=(i+1)%8)
 	{
-		LAT_DATA = 0x01 << i;
-		set_addr(0x00001 << j);
+		unsigned char c=0;
 		
-		for(k=0; k<150; k++)
+		//printf("addr=%u, ", j);
+		printf("addr=0x%05Hx, ", j);
+		printf("data=0x%02hhx ", (0x01<<i));
+		printf("(%d)\n\r", i);
+		
+		LAT_DATA = 0x01 << i;
+		set_addr(j);
+		
+		if (j & 0x00001)
 		{
-			Delay100TCYx(255);
+			ACTIVATE_FL0();
 		}
+		if (j & 0x00002)
+		{
+			DEACTIVATE_FL0();
+		}
+		if (j & 0x00004)
+		{
+			LAT_WE = 0;
+		}
+		if (j & 0x00008)
+		{
+			LAT_WE = 1;
+		}
+		if (j & 0x00010)
+		{
+			LAT_OE = 0;
+		}
+		if (j & 0x00020)
+		{
+			LAT_OE = 1;
+		}
+		
+		j = j << 1;
+		
+		if (j & 0x40000)
+		{
+			j = 1;
+		}
+
+		do
+		{
+			ISR_disable();
+			while (_interrupts.rx)
+			{
+				_interrupts.rx = 0;
+				ISR_enable();
+				
+				while(!CIRCBUF_EMPTY(_rxbuf))
+				{
+					CIRCBUF_POPCHAR_INLINE(_rxbuf, c);
+				}
+				//c=1;
+				ISR_disable();
+			}
+			ISR_enable();
+		
+		} while(c==0);
+		
 	}		
+	*/
 	
 	printf("\r\r\n\n************\n\r\n\r");
 	
-	printf("flash beginning\n\r");
+	flash_reset();
 	
 	rc1 = flash_init();
 	
@@ -240,6 +299,34 @@ void main(void)
 		printf("BAILING because flash init failed\n\r");
 		for(;;);
 	}
+	
+	
+	printf("waiting for input\r\n");
+	c = 0;
+	
+	do
+	{
+		ISR_disable();
+		while (_interrupts.rx)
+		{
+			_interrupts.rx = 0;
+			ISR_enable();
+			
+			while(!CIRCBUF_EMPTY(_rxbuf))
+			{
+				CIRCBUF_POPCHAR_INLINE(_rxbuf, c);
+			}
+			//c=1;
+			ISR_disable();
+		}
+		ISR_enable();
+	
+	} while(c==0);
+		
+	printf("\r\nflash beginning\n\r");
+	
+	//printf("rc = %d\r\n", flash_pgm_byte(0x0, 0x0, 0xff));
+	//printf("rc = %d\r\n", flash_pgm_byte(0x0, 0x0, 0xff));
 	
 	rc1 = flash_pgm_byte(0x0, 0x0, 0xde);
 	

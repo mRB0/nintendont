@@ -246,8 +246,8 @@ void set_addr(uint24_t addr)
 	// A17
 	LATBbits.LATB4 = (addr >> 17) & 0x1;
 	
-	//Nop();
-	//Nop();
+	Nop();
+	Nop();
 	
 }
 
@@ -257,8 +257,9 @@ uint8_t port_getc(void)
 	
 	TRIS_DATA = TRIS_INPUT;
 	
+	//Delay10TCYx(50);
 	LAT_OE = 0;
-	//Delay10TCYx(100);
+	//Delay10TCYx(50);
 	
 	data = PORT_DATA;
 	LAT_OE = 1;
