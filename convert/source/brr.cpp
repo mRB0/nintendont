@@ -119,6 +119,24 @@ namespace VRC6Bot {
 		looplength += unroll * looplength;
 	}
 
+	void UnrollBidiLoop( s16 **Data, int &length, int &loopstart, int &looplength ) {
+		s16 *newdata = new s16 [length + looplength];
+		s16 *out = newdata;
+		for( int i = 0; i < length; i++ ) {
+			*out++ = (*Data)[i];
+		}
+
+		for( int i = 0; i < looplength; i++ ) {
+			*out++ = (*Data)[length-1-i];
+		}
+
+		delete[] (*Data);
+		(*Data) = newdata;
+
+		length += looplength;
+		looplength += looplength;
+	}
+
 	Sample::~Sample() {
 		if( BRRdata )
 		delete[] BRRdata;
@@ -146,6 +164,10 @@ namespace VRC6Bot {
 			for( int i = 0; i < length; i++ ) {
 				Data[i] = ((source.Data8[i] * 32767) / 128);
 			}
+		}
+
+		if( source.BidiLoop ) {
+			UnrollBidiLoop( &Data, length, loopstart, looplength );
 		}
 
 		double tuning_factor = 1.0;

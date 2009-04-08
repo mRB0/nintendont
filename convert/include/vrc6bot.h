@@ -64,6 +64,9 @@ namespace VRC6Bot {
 
 		bool Compare( const Sample& ) const;
 		void Export( IO::File & ) const;
+		int GetDataLength() const {
+			return DataLength;
+		}
 
 		double GetTuningFactor() const {
 			return TuningFactor;
@@ -81,6 +84,9 @@ namespace VRC6Bot {
 		
 	public:
 		SampleHeader( const ITLoader::Sample &, int, const Sample * );
+		u16 GetSampleIndex() const {
+			return SampleIndex;
+		}
 		
 		void Export( IO::File &file );
 	};
@@ -118,6 +124,7 @@ namespace VRC6Bot {
 		~IModule();
 
 		void Export( IO::File &file );
+		void PrintSampleReport( int prefix, const std::vector<Sample*> &sources ) const;
 
 		int GetSequenceLength() const;
 	};

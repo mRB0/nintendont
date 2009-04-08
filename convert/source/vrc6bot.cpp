@@ -335,6 +335,20 @@ namespace VRC6Bot {
 		return SequenceLength;
 	}
 
+	void IModule::PrintSampleReport( int prefix, const std::vector<Sample*> &sources ) const {
+		int usage = 0;
+		int scount = 0;
+		for( u32 i = 9; i < SampleCount; i++ ) {
+			int si = samples[i]->GetSampleIndex();
+			//if( si ) {
+				usage += sources[si]->GetDataLength();
+				scount++;
+			//}
+		}
+		printf( 
+			"%i: uses %i samples, ~%i bytes of spc remaining (%i%%)\n", prefix, scount, 64256 - usage, ((64256 - usage) * 100 + (64256/2)) / 64256 );
+	}
+
 	/**********************************************************************************************
 	 *
 	 * SampleHeader
@@ -480,6 +494,9 @@ namespace VRC6Bot {
 			file.WriteAlign( 64 );
 			ModulePointers[i] = file.Tell() / 64;
 			emodules[i]->Export( file, imodules[i]->GetSequenceLength() );
+
+			imodules[i]->PrintSampleReport( i+1, samples );
+			
 		}
 		
 		u16 *SamplePointers = new u16[SampleCount];
@@ -488,6 +505,9 @@ namespace VRC6Bot {
 			SamplePointers[i] = file.Tell() / 64;
 			samples[i]->Export( file );
 		}
+
+		printf( "%i SPC samples total.\n", SampleCount );
+		
 
 		file.Seek( 0x200 );
 
