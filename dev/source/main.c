@@ -218,76 +218,18 @@ void main(void)
 	//LAT_DATA = 0x01 << 3;
 	
 	putrsUSART("ok go\n\r");
-	/*
 	
-	for(i=0; ; i=(i+1)%8)
-	{
-		unsigned char c=0;
-		
-		//printf("addr=%u, ", j);
-		printf("addr=0x%05Hx, ", j);
-		printf("data=0x%02hhx ", (0x01<<i));
-		printf("(%d)\n\r", i);
-		
-		LAT_DATA = 0x01 << i;
-		set_addr(j);
-		
-		if (j & 0x00001)
-		{
-			ACTIVATE_FL0();
-		}
-		if (j & 0x00002)
-		{
-			DEACTIVATE_FL0();
-		}
-		if (j & 0x00004)
-		{
-			LAT_WE = 0;
-		}
-		if (j & 0x00008)
-		{
-			LAT_WE = 1;
-		}
-		if (j & 0x00010)
-		{
-			LAT_OE = 0;
-		}
-		if (j & 0x00020)
-		{
-			LAT_OE = 1;
-		}
-		
-		j = j << 1;
-		
-		if (j & 0x40000)
-		{
-			j = 1;
-		}
-
-		do
-		{
-			ISR_disable();
-			while (_interrupts.rx)
-			{
-				_interrupts.rx = 0;
-				ISR_enable();
-				
-				while(!CIRCBUF_EMPTY(_rxbuf))
-				{
-					CIRCBUF_POPCHAR_INLINE(_rxbuf, c);
-				}
-				//c=1;
-				ISR_disable();
-			}
-			ISR_enable();
-		
-		} while(c==0);
-		
-	}		
-	*/
+	
+	/*88888888888888888888888888888888888*/
+	
+	for(;;);
+	
 	
 	printf("\r\r\n\n************\n\r\n\r");
 	
+	printf("flash_pgm_byte = %d\n", flash_pgm_byte(0, 0, 0xff));
+	printf("flash_pgm_byte = %d\n", flash_pgm_byte(0, 0, 0xff));
+	flash_reset();
 	flash_reset();
 	
 	rc1 = flash_init();
@@ -296,8 +238,8 @@ void main(void)
 
 	if (rc1 != 0)
 	{
-		printf("BAILING because flash init failed\n\r");
-		for(;;);
+		printf("[ignored] BAILING because flash init failed\n\r");
+		//for(;;);
 	}
 	
 	
@@ -328,7 +270,7 @@ void main(void)
 	//printf("rc = %d\r\n", flash_pgm_byte(0x0, 0x0, 0xff));
 	//printf("rc = %d\r\n", flash_pgm_byte(0x0, 0x0, 0xff));
 	
-	rc1 = flash_pgm_byte(0x0, 0x0, 0xde);
+	rc1 = flash_pgm_byte(0x0, 0x0, 0x0);
 	
 	printf("pgmbyte done, rc = 0x%02hhx\n\r", rc1);
 	
@@ -346,6 +288,8 @@ void main(void)
 	//putrsUSART("
 	
 	for(;;);
+	
+	
 	
 	// keyboard
 	for(;;)

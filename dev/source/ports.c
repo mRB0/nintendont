@@ -181,7 +181,6 @@ void ports_vrc6_write(uint8_t port, uint8_t data) {
 void ports_flash_open( uint24_t addr ) {
 	ACTIVATE_FL0();
 	_flash_addr = addr;
-	set_addr(addr);
 }
 
 void ports_flash_opencont() {
@@ -240,8 +239,8 @@ void set_addr(uint24_t addr)
 	LATC = ((addr >> (uint16_t)12) & 0x0f) | (LATC & 0xf0);
 	
 	// A16
-	//LATCbits.LATC5 = (addr >> 16) & 0x1;
-	LATEbits.LATE2 = (addr >> 16) & 0x1;
+	LATCbits.LATC5 = (addr >> 16) & 0x1;
+	//LATEbits.LATE2 = (addr >> 16) & 0x1;
 	
 	// A17
 	LATBbits.LATB4 = (addr >> 17) & 0x1;
