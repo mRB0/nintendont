@@ -101,7 +101,7 @@ int8_t flash_pgm_byte(uint8_t flash_chip, uint24_t addr, uint8_t data)
 		if (data != 0xff)
 		{
 			flash_pgm_byte(flash_chip, addr, 0xff);
-			flash_pgm_byte(flash_chip, addr, 0xff);
+			flash_pgm_byte(flash_chip, addr+1, 0xff);
 			flash_reset();
 		}
 		
@@ -213,7 +213,7 @@ int8_t flash_erase(uint8_t flash_chip)
 		printf("[erase  ] BAILING at addr=%05Hx\n\r", addr);
 		
 		flash_pgm_byte(flash_chip, addr, 0xff);
-		flash_pgm_byte(flash_chip, addr, 0xff);
+		flash_pgm_byte(flash_chip, addr+1, 0xff);
 		flash_reset();
 		
 		// error, abort
