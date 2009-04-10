@@ -12,7 +12,40 @@
 #include "ports.h"
 #include "serial.h"
 #include "flash.h"
+
+void mem_test(void)
+{
+	uint24_t addr;
+	uint8_t data, data2;
 	
+	ACTIVATE_FL0();
+	
+	for(data=0, addr=0; addr<0x40000; addr++, data=(data+1)%254)
+	{
+		if (addr%0x4000 == 0)
+		{
+			printf("writing 0x%02hhx to addr 0x%05Hx\r\n", data, addr);
+		}
+		port_write(addr, data);
+	}
+	
+	//DEACTIVATE_FL0();
+	
+	for(data2=0, addr=0; addr<0x40000; addr++, data2=(data2+1)%254)
+	{
+		if (addr%0x4000 == 0)
+		{
+			printf("read from addr 0x%05Hx\r\n", addr);
+		}
+		data = port_read(addr);
+		if (data != data2)
+		{
+			printf("0x%05Hx: got 0x%02hhx, expected 0x%02hhx\r\n", addr, data, data2);
+		}
+	}
+	
+	DEACTIVATE_FL0();
+}	
 
 /*
  * The SPC module is located at 0x00 .. 0x03, with LAT_SPC_CE low.
@@ -126,7 +159,6 @@ void system_init(void)
 	
 	spc_init();
 	vrc6_init();
-	// xxx moved to main // flash_init();
 	
 	serial_init();
 	
@@ -222,6 +254,7 @@ void main(void)
 	
 	/*88888888888888888888888888888888888*/
 	
+	/*
 	for(;;);
 	
 	
@@ -243,27 +276,6 @@ void main(void)
 	}
 	
 	
-	printf("waiting for input\r\n");
-	c = 0;
-	
-	do
-	{
-		ISR_disable();
-		while (_interrupts.rx)
-		{
-			_interrupts.rx = 0;
-			ISR_enable();
-			
-			while(!CIRCBUF_EMPTY(_rxbuf))
-			{
-				CIRCBUF_POPCHAR_INLINE(_rxbuf, c);
-			}
-			//c=1;
-			ISR_disable();
-		}
-		ISR_enable();
-	
-	} while(c==0);
 		
 	printf("\r\nflash beginning\n\r");
 	
@@ -289,7 +301,31 @@ void main(void)
 	
 	for(;;);
 	
+	*/
 	
+	printf("waiting for input\r\n");
+	c = 0;
+	
+	do
+	{
+		ISR_disable();
+		while (_interrupts.rx)
+		{
+			_interrupts.rx = 0;
+			ISR_enable();
+			
+			while(!CIRCBUF_EMPTY(_rxbuf))
+			{
+				CIRCBUF_POPCHAR_INLINE(_rxbuf, c);
+			}
+			//c=1;
+			ISR_disable();
+		}
+		ISR_enable();
+	
+	} while(c==0);
+	
+	mem_test();
 	
 	// keyboard
 	for(;;)
