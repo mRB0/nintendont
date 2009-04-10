@@ -432,6 +432,9 @@ void main(void)
 	
 	//for(;;);
 	
+	Player_SetIBank(INTERNAL_MEM_BASE);
+	Player_Init();
+	Player_Start(0);
 	
 	// play fun tones
 	
