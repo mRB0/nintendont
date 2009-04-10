@@ -20,14 +20,14 @@ void serial_init(void)
 	_rxbuf.start = _rxbuf.writepos = 0;
 	
 	
-	// open at 9600 baud
+	// open at 57600 or 115200 baud
 	OpenUSART(USART_TX_INT_OFF &
 	          USART_RX_INT_ON &
 	          USART_ASYNCH_MODE &
 	          USART_EIGHT_BIT &
 	          USART_CONT_RX &
 	          USART_BRGH_HIGH,
-	          138);
+	          68); // 138 = 57600, 68 = 115200
 	
 	IPR1bits.RCIP = 0;
 	

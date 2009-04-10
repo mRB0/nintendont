@@ -298,5 +298,67 @@ void port_write(uint24_t addr, uint8_t data)
 
 /* end mrb */
 
+// this code lifted from http://www.microchip.com/forums/tm.aspx?m=364055&mpage=2
+
+#define TOP_OF_FLASH  0x0FD7F    // for 18F4620
+#define TOP_OF_CODE   0x02000    // arbitrary; TBD - find out if we can read this from somewhere
+#define ALIGN_MASK    ~0x3F        // to clear bottom 6 bits
+
+unsigned short long memmoveram2flash(unsigned short long addr, unsigned char * mem)
+{
+	unsigned char i;
+	
+	if (addr > TOP_OF_FLASH - 64) return 0;    // error - address bigger than physical
+	if (addr < TOP_OF_CODE ) return 0;        // error - address lower than reasonable
+	addr &= ALIGN_MASK;
+	
+	TBLPTR = addr;
+	
+	// Set up to ERASE (write 0XFF to every byte)
+	EECON1bits.EEPGD = 1;    //set EEPGD bit to point to program memory;
+	EECON1bits.CFGS = 0;    //clear the CFGS bit to access program memory;
+	EECON1bits.WREN = 1;    //set WREN to enable byte writes.
+	EECON1bits.FREE = 1;    //enable Row Erase operation
+	//INTCONbits.GIEL = 0;    // disable low interrupts
+	//INTCONbits.GIEH = 0;     // disable high interrupts
+	////// Erase FLASH - 'magic' code - do not change ///////
+	EECON2 = 0x55;            // required sequence
+	EECON2 = 0xAA;            // required sequence
+	EECON1bits.WR = 1;        // start erase (CPU stall)
+	/////////////////////////////////////////////////////////
+	PIR2bits.EEIF = 0;        // clear write interrupt flag
+	//INTCONbits.GIEH = 1;    // enable high interrupts
+	//INTCONbits.GIEL = 1;    // enable low interrupts
+	EECON1bits.WREN = 0;
+	
+	TBLPTR = addr;            // ... just in case
+	for(i = 0; i < 64; i++)    // 18F8722 has 64 holding registers
+    	                  // this may not be true of other devices
+	{
+  		TABLAT = mem[i];    // put a char into the table latch register (from mem + i)
+  		_asm
+  		TBLWTPOSTINC        // write to holding register and post-increment TBLPTR
+  		_endasm
+	}
+
+	//WRITE (changes each 1 bit to 0 as needed)
+	TBLPTR = addr;            // re-set TBLPTR to start of block
+	EECON1bits.EEPGD = 1;    //set EEPGD bit to point to program memory;
+	EECON1bits.CFGS = 0;     //clear the CFGS bit to access program memory;
+	EECON1bits.WREN = 1;     //set WREN to enable byte writes.
+	//INTCONbits.GIEL = 0;    // disable low interrupts
+	//INTCONbits.GIEH = 0;     // disable high interrupts
+	//// Write to FLASH  - 'magic' code - do not change //////
+	EECON2 = 0x55;            // required sequence
+	EECON2 = 0xAA;            // required sequence
+	EECON1bits.WR = 1;        // start program (CPU stall)
+	//////////////////////////////////////////////////////////
+	PIR2bits.EEIF = 0;        // clear write interrupt flag
+	//INTCONbits.GIEH = 1;    // enable high interrupts
+	//INTCONbits.GIEL = 1;    // enable low interrupts
+	EECON1bits.WREN = 0;    // disable write to memory
+	
+	return addr;            // where we really put the data
+}
 
 #endif

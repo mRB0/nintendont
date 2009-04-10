@@ -5,6 +5,9 @@
 #include <delays.h>
 #include <usart.h>
 #include <stdio.h>
+#include <string.h>
+
+#include "player.h"
 
 
 #include "circbuf.h"
@@ -12,6 +15,125 @@
 #include "ports.h"
 #include "serial.h"
 #include "flash.h"
+
+#define BOTRDY 0x51
+#define BOTRDY_I 0x61
+#define INJRDY 0x52
+#define INJRDY_I 0x62
+#define INJABT 0x53
+#define INJABT_I 0x63
+#define ACK 0x53
+#define BLKSIZE 64
+
+#define INTERNAL_MEM_BASE 0xa000
+
+void mem_load(uint8_t internal)
+{
+	uint24_t len;
+	uint8_t i;
+	uint24_t addr;
+	uint8_t blk[BLKSIZE];
+	
+	uint8_t botrdy=BOTRDY, injrdy=INJRDY, injabt=INJABT;
+	
+	if (internal)
+	{
+		botrdy = BOTRDY_I;
+		injrdy = INJRDY_I;
+		injabt = INJABT_I;
+	}
+	
+	ISR_disable();
+	
+	// drain
+	while(DataRdyUSART())
+	{
+		ReadUSART();
+	}
+	
+	// wait for injector
+	do
+	{
+		while(BusyUSART()) {}
+		WriteUSART(botrdy);
+		Delay100TCYx(250);
+		if (DataRdyUSART())
+		{
+			blk[0] = ReadUSART();
+			if (blk[0] == injabt)
+			{
+				// don't program
+				ISR_enable();
+				return;
+			}
+			if (blk[0] == injrdy)
+			{
+				break;
+			}
+		}
+		
+	} while(1);
+	
+	while(BusyUSART()) {}
+	WriteUSART(ACK);
+	
+	// wait for length
+	len = 0;
+	
+	while(!DataRdyUSART()) {}
+	blk[0] = ReadUSART();
+	while(!DataRdyUSART()) {}
+	blk[1] = ReadUSART();
+	while(!DataRdyUSART()) {}
+	blk[2] = ReadUSART();
+	len = ((uint24_t)(blk[0])<<16) | (((uint24_t)blk[1])<<8) | (uint24_t)blk[2];
+		
+	// receive all data in BLKSIZE chunks
+	
+	addr = 0;
+	if (!internal)
+	{
+		ACTIVATE_FL0();
+	}
+	
+	while(BusyUSART()) {}
+	WriteUSART(ACK);
+	
+	do
+	{
+		for(i=0; i<BLKSIZE; i++)
+		{
+			while(!DataRdyUSART()) {}
+			blk[i] = ReadUSART();
+		}
+		
+		// write block to memory
+		if (internal)
+		{
+			memmoveram2flash(INTERNAL_MEM_BASE+addr, blk);
+		}
+		else
+		{
+			for(i=0; i<BLKSIZE; i++)
+			{
+				port_write(addr+i, blk[i]);
+			}
+		}
+		
+		addr += BLKSIZE;
+		
+		while(BusyUSART()) {}
+		WriteUSART(ACK);
+	
+	} while (addr < len);
+	
+	if (!internal)
+	{
+		DEACTIVATE_FL0();
+	}
+	
+	ISR_enable();
+}
 
 void mem_test(void)
 {
@@ -29,7 +151,9 @@ void mem_test(void)
 		port_write(addr, data);
 	}
 	
-	//DEACTIVATE_FL0();
+	DEACTIVATE_FL0();
+	
+	ports_flash_open(0);
 	
 	for(data2=0, addr=0; addr<0x40000; addr++, data2=(data2+1)%254)
 	{
@@ -37,14 +161,15 @@ void mem_test(void)
 		{
 			printf("read from addr 0x%05Hx\r\n", addr);
 		}
-		data = port_read(addr);
+		//data = port_read(addr);
+		data = ports_flash_read();
 		if (data != data2)
 		{
 			printf("0x%05Hx: got 0x%02hhx, expected 0x%02hhx\r\n", addr, data, data2);
 		}
 	}
 	
-	DEACTIVATE_FL0();
+	ports_flash_close();
 }	
 
 /*
@@ -222,197 +347,10 @@ void spc_test(void)
 	
 }
 
-const rom uint16_t _frequencies[] = { 626, 590, 557, 526, 496, 468, 442, 417, 394, 372, 351, 331, 313 };
-
-void main(void)
+void play_fun_tones()
 {
-	int i, k;
-	uint24_t j=1;
-	
-	uint16_t freq = 0;
 	uint8_t duty = 0x0;
-	unsigned char c;
-	
-	int8_t rc1=0, rc2=-1;
-	
-	system_init();
-	
-	//spc_test();
-	//flash_test();
-	
-	/*
-	set_addr(0x00001 << 9);
-	set_addr(0x08000);
-	for(;;);
-	*/
-	
-	TRIS_DATA = 0x0;
-	//LAT_DATA = 0x01 << 3;
-	
-	putrsUSART("ok go\n\r");
-	
-	
-	/*88888888888888888888888888888888888*/
-	
-	/*
-	for(;;);
-	
-	
-	printf("\r\r\n\n************\n\r\n\r");
-	
-	printf("flash_pgm_byte = %d\n", flash_pgm_byte(0, 0, 0xff));
-	printf("flash_pgm_byte = %d\n", flash_pgm_byte(0, 0, 0xff));
-	flash_reset();
-	flash_reset();
-	
-	rc1 = flash_init();
-	
-	printf("init done, rc = 0x%02hhx\n\r", rc1);
-
-	if (rc1 != 0)
-	{
-		printf("[ignored] BAILING because flash init failed\n\r");
-		//for(;;);
-	}
-	
-	
-		
-	printf("\r\nflash beginning\n\r");
-	
-	//printf("rc = %d\r\n", flash_pgm_byte(0x0, 0x0, 0xff));
-	//printf("rc = %d\r\n", flash_pgm_byte(0x0, 0x0, 0xff));
-	
-	rc1 = flash_pgm_byte(0x0, 0x0, 0x0);
-	
-	printf("pgmbyte done, rc = 0x%02hhx\n\r", rc1);
-	
-	if (rc1 == 0x00)
-	{
-		rc2 = flash_erase(0);
-		
-		printf("erase done, rc = 0x%02hhx\n\r", rc2);
-	}
-	
-	Nop();
-	Nop();
-	
-	putrsUSART("done recording\n\r");
-	//putrsUSART("
-	
-	for(;;);
-	
-	*/
-	
-	printf("waiting for input\r\n");
-	c = 0;
-	
-	do
-	{
-		ISR_disable();
-		while (_interrupts.rx)
-		{
-			_interrupts.rx = 0;
-			ISR_enable();
-			
-			while(!CIRCBUF_EMPTY(_rxbuf))
-			{
-				CIRCBUF_POPCHAR_INLINE(_rxbuf, c);
-			}
-			//c=1;
-			ISR_disable();
-		}
-		ISR_enable();
-	
-	} while(c==0);
-	
-	mem_test();
-	
-	// keyboard
-	for(;;)
-	{
-		ISR_disable();
-		while (_interrupts.rx)
-		{
-			_interrupts.rx = 0;
-			ISR_enable();
-			
-			ACTIVATE_VRC6();
-			
-			while(!CIRCBUF_EMPTY(_rxbuf))
-			{
-				CIRCBUF_POPCHAR_INLINE(_rxbuf, c);
-				switch(c)
-				{
-					case '`':
-						duty = (duty + 1) % 0x8;
-						port_write(0x9000, 0x0f | (duty << 4));
-						break;
-					case 'q':
-						freq = _frequencies[0];
-						break;
-					case '2':
-						freq = _frequencies[1];
-						break;
-					case 'w':
-						freq = _frequencies[2];
-						break;
-					case '3':
-						freq = _frequencies[3];
-						break;
-					case 'e':
-						freq = _frequencies[4];
-						break;
-					case 'r':
-						freq = _frequencies[5];
-						break;
-					case '5':
-						freq = _frequencies[6];
-						break;
-					case 't':
-						freq = _frequencies[7];
-						break;
-					case '6':
-						freq = _frequencies[8];
-						break;
-					case 'y':
-						freq = _frequencies[9];
-						break;
-					case '7':
-						freq = _frequencies[10];
-						break;
-					case 'u':
-						freq = _frequencies[11];
-						break;
-					case 'i':
-						freq = _frequencies[12];
-						break;
-					case ' ':
-						freq = 0;
-						break;
-				}
-				if (freq == 0)
-				{
-					port_write(0x9002, 0x00);
-				}
-				else
-				{
-					port_write(0x9001, freq);
-					port_write(0x9002, 0x80 | (0xf & (freq >> 8)));
-				}
-				//port_write(0x9001, 0xa7);
-				//port_write(0x9002, 0x83);
-				
-			}
-			
-			DEACTIVATE_VRC6();
-			
-			ISR_disable();
-		}
-		ISR_enable();
-	}
-	
-	
-	// play fun tones
+	uint8_t c;
 	
 	for(;;)
 	{
@@ -475,4 +413,28 @@ void main(void)
 		
 		
 	}
+}
+
+void main(void)
+{
+	int i, k;
+	uint24_t j=1;
+	
+	int8_t rc1=0, rc2=-1;
+	
+	system_init();
+	
+	//spc_test();
+	//flash_test();
+	
+	mem_load(0); // external
+	mem_load(1); // internal
+	
+	//for(;;);
+	
+	
+	// play fun tones
+	
+	//play_fun_tones();
+	
 }

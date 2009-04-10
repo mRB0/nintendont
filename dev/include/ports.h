@@ -112,5 +112,7 @@ uint24_t ports_flash_tell( void );
 // read a word & increment pointer
 uint16_t ports_flash_read16( void );
 
+unsigned short long memmoveram2flash(unsigned short long addr, unsigned char * mem);
+
 #endif
 
