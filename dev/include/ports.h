@@ -13,13 +13,6 @@
 
 #define TRIS_FL0_CE	TRISBbits.TRISB5
 #define LAT_FL0_CE	LATBbits.LATB5
-/*
-#define TRIS_SPC_CE	TRISBbits.TRISB5
-#define LAT_SPC_CE	LATBbits.LATB5
-
-#define TRIS_FL0_CE	TRISCbits.TRISC4
-#define LAT_FL0_CE	LATCbits.LATC4
-*/
 
 // /SPC_RESET moved to A7 (active high)
 //#define TRIS_SPC_RESET	TRISCbits.TRISC5

@@ -425,6 +425,7 @@ void main(void)
 	system_init();
 	
 	//spc_test();
+	
 	//flash_test();
 	
 	mem_load(0); // external
@@ -433,7 +434,8 @@ void main(void)
 	//for(;;);
 	
 	Player_SetIBank(INTERNAL_MEM_BASE);
-	Player_Init();
+	//Player_Init();
+	Player_Reset();
 	Player_Start(0);
 	
 	// play fun tones

@@ -2,6 +2,7 @@
 #define INTERRUPTS_H_
 
 #include <stddef.h>
+#include <p18f4620.h>
 
 #include "stdint.h"
 
