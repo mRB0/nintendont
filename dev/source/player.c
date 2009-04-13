@@ -170,6 +170,7 @@ static uint8_t t_Panning;
 static uint16_t t_Pitch;
 
 static uint8_t pattern_command_memory[11*8];
+static uint8_t pattern_command_memory_len = 11*8;
 
 static void UpdateChannels( void );
 static void UpdateChannel( uint8_t, uint8_t );
@@ -228,7 +229,7 @@ void Player_Reset( void ) {
 		Channels[i].Fadeout			= 0;
 	
 	}
-	for( i = 0; i < sizeof(pattern_command_memory); i++ ) {
+	for( i = 0; i < pattern_command_memory_len; i++ ) {
 		pattern_command_memory[i] = 0;
 	}
 }

@@ -1,7 +1,13 @@
+#include <delays.h>
+#include <stdio.h>
+
 #include "spcunit.h"
 #include "ports.h"
 
-extern rom uint8_t SPCUNIT_BINARY[];
+#include "interrupts.h"
+
+extern const rom uint8_t SPCUNIT_BINARY[];
+//extern const rom uint16_t SPCUNIT_BINARY_LEN = 682;
 
 enum {
 	CMD_LOAD	=0,
@@ -35,41 +41,79 @@ static uint8_t CURRENT_PAN[8];
 static void UploadDriver( void ) {
 	uint8_t data;
 	uint8_t PT0;
-	uint16_t BINARY_READ=0;
+	uint16_t BINARY_READ=0, block_idx, block_len = 64, write_addr=0;
+	
+	ISR_disable();
+	
 	ports_spc_open();
 
 	// Confirm AA, BB
 	while( ports_spc_read(0) != 0xAA ) {}
 	while( ports_spc_read(1) != 0xBB ) {}
-
+	
+	//ports_spc_write(0, 0xCC);
+	
+	//SPCUNIT_BINARY_LEN
+	
 	// PORT1 = NOT 0
 	// PORT2 = ADDRESS LOW
 	// PORT3 = ADDRESS HIGH
 	// PORT0 = PT0
-	ports_spc_write(1, 1);
-	ports_spc_write(2, BOOT_ADDRESS_L );
-	ports_spc_write(3, BOOT_ADDRESS_H );
+	//write_addr = ((uint16_t)BOOT_ADDRESS_H << 8) | (BOOT_ADDRESS_L);
+	write_addr = BOOT_ADDRESS_H;
+	write_addr <<= 8;
+	write_addr |= BOOT_ADDRESS_L;
+	
+	block_idx = 0;
+	
+	Delay100TCYx(100);
+	
+	printf("BOOT_ADDRESS_H = %02hhx, BOOT_ADDRESS_L = %02hhx, write_addr = %04hx\r\n", BOOT_ADDRESS_H, BOOT_ADDRESS_L, write_addr);
+	
+	//ports_spc_write(2, write_addr >> 8);
+	//ports_spc_write(3, write_addr & 0xff);
+	//ports_spc_write(1, 1);
 	PT0 = 0xCC;
-	ports_spc_write(0, PT0);
-	while( ports_spc_read(0) != PT0 );
-
-	PT0 = 0;
+	//ports_spc_write(0, PT0);
+	//while( ports_spc_read(0) != PT0 );
 	
-	// --DATA TRANSFER START--
-	for( BINARY_READ = 0; BINARY_READ < sizeof(SPCUNIT_BINARY); BINARY_READ++ ) {
-		ports_spc_write( 1, SPCUNIT_BINARY[BINARY_READ] );
-		ports_spc_write( 0, PT0 );
-		while( ports_spc_read(0) != PT0 ) {}
-		PT0++;
-	}
+	// block transfer
+	for(; write_addr < SPCUNIT_BINARY_LEN; write_addr += block_len);
+	{
+		printf("write_addr = %04hx\r\n", write_addr);
+		ports_spc_write(2, write_addr >> 8);
+		ports_spc_write(3, write_addr & 0xff);
+		ports_spc_write(1, 1);
+		ports_spc_write(0, PT0);
+		while( ports_spc_read(0) != PT0 );
+		
+		PT0 = 0;
+		
+		// --BLOCK TRANSFER START--
+		for( block_idx = 0; (block_idx < block_len) && (write_addr+block_idx < SPCUNIT_BINARY_LEN); block_idx++ ) {
+			printf("=> block_idx = %04hx\r\n", block_idx);
+			ports_spc_write( 1, SPCUNIT_BINARY[write_addr + block_idx] );
+			ports_spc_write( 0, PT0 );
+			while( ports_spc_read(0) != PT0 ) {}
+			PT0++;
+		}
+		printf("write_addr = %04hx, block_idx = %04hx\r\n", write_addr, block_idx);
+		PT0 += 3;
+		if (PT0 == 0)
+		{
+			PT0 += 3;
+		}
+	}	
 
-	PT0++;
+	//PT0++;
 	
-	ports_spc_write( 1, 0 );
 	ports_spc_write( 2, BOOT_ADDRESS_L );
 	ports_spc_write( 3, BOOT_ADDRESS_H );
+	ports_spc_write( 1, 0 );
 	ports_spc_write( 0, PT0 );
-
+	
+	// wait for PT0 to be echoed back?
+	
 	// driver is uploaded...
 	// and will send V=0 when ready
 	SPC_V = 0;
@@ -99,7 +143,9 @@ void SPCU_BOOT( void ) {
 }
 
 static void SPC_COMMAND( uint8_t cmd, uint8_t param1, uint8_t param2 ) {
-
+	// xxx
+	return;
+	
 	ports_spc_open();
 		while( ports_spc_read(1) != SPC_V ) {}
 		ports_spc_write( 0, cmd );
@@ -112,6 +158,8 @@ static void SPC_COMMAND( uint8_t cmd, uint8_t param1, uint8_t param2 ) {
 }
 
 void SPCU_LOAD( uint16_t LOOP ) {
+	// xxx
+	return;
 
 	ports_spc_open();
 		while( ports_spc_read( 1 ) != SPC_V ) {}
@@ -127,6 +175,8 @@ void SPCU_LOAD( uint16_t LOOP ) {
 }
 
 void SPCU_TRANSFER( uint16_t DATA, uint8_t FINAL ) {
+	// xxx
+	return;
 	ports_spc_open();
 		while( ports_spc_read( 1 ) != SPC_V ) {}
 		ports_spc_write( 2, DATA & 0xFF );
