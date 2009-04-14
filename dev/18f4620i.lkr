@@ -3,7 +3,7 @@
 
 LIBPATH .
 
-FILES c018i.o
+// FILES c018i.o
 FILES clib.lib
 FILES p18f4620.lib
 

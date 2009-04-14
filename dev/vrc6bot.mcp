@@ -57,7 +57,7 @@ file_010=source\spcunit_bin.c
 file_011=source\circbuf.c
 file_012=source\serial.c
 file_013=source\flash.c
-file_014=source\c018.c
+file_014=source\c018i.c
 file_015=C:\MCC18\h\p18f4620.h
 file_016=include\interrupts.h
 file_017=include\player.h
@@ -67,7 +67,7 @@ file_020=include\stdint.h
 file_021=include\vrc6.h
 file_022=include\circbuf.h
 file_023=include\flash.h
-file_024=18f4620_c.lkr
+file_024=18f4620i.lkr
 [SUITE_INFO]
 suite_guid={5B7D72DD-9861-47BD-9F60-2BE967BF8416}
 suite_state=
