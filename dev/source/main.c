@@ -415,6 +415,73 @@ void play_fun_tones()
 	}
 }
 
+const rom uint16_t frequencies[] = { 1024, 966, 913, 862, 814, 768, 725, 685, 647, 611, 577, 545, 514, 486, 458, 433, 409, 386, 364, 344, 325, 307, 290, 273, 258, 244, 230, 217, 205, 194 };
+const rom uint8_t keys[] = { 'z', 's', 'x', 'd', 'c', 'v','g','b','h','n','j','m','q','2','w','3','e','r','5','t','6','y','7','u','i','9','o','0','p' };
+
+void fun_keyboard(void)
+{
+	int i;
+	uint8_t c;
+	uint8_t duty = 5;
+	
+	ACTIVATE_VRC6();
+	
+	port_write(0xa000, 0x0f | ((duty-1)<<4));
+	
+	for(;;)
+	{
+		
+		ISR_disable();
+		while (_interrupts.rx)
+		{
+			_interrupts.rx = 0;
+			ISR_enable();
+			
+			while(!CIRCBUF_EMPTY(_rxbuf))
+			{
+				CIRCBUF_POPCHAR_INLINE(_rxbuf, c);
+				Nop();
+				Nop();
+				
+				for(i=0; i<29; i++)
+				{
+					if (c == keys[i])
+					{
+						port_write(0xa001, 0x00 | frequencies[i]);
+						port_write(0xa002, 0x80 | (frequencies[i] >> 8));
+					}
+				}
+				
+				switch(c)
+				{
+					case ' ':
+						port_write(0xa002, 0x00);
+						break;
+					case ',':
+						duty = duty - 1;
+						if (duty == 0)
+						{
+							duty = 8;
+						}
+						port_write(0xa000, 0x0f | ((duty-1)<<4));
+						break;
+					case '.':
+						duty = duty + 1;
+						if (duty == 9)
+						{
+							duty = 1;
+						}
+						port_write(0xa000, 0x0f | ((duty-1)<<4));
+						break;
+				}
+			}
+			
+			ISR_disable();
+		}
+		ISR_enable();
+	}
+}
+
 void main(void)
 {
 	int i, k;
@@ -428,6 +495,12 @@ void main(void)
 	
 	//flash_test();
 	
+	// play fun tones
+	
+	fun_keyboard();
+	
+	//play_fun_tones();
+	
 	mem_load(0); // external
 	mem_load(1); // internal
 	
@@ -437,9 +510,5 @@ void main(void)
 	//Player_Init();
 	Player_Reset();
 	Player_Start(0);
-	
-	// play fun tones
-	
-	//play_fun_tones();
 	
 }
