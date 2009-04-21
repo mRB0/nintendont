@@ -1,3 +1,4 @@
+#if 0
 #include "player.h"
 
 #ifdef __PLAYERDEV__
@@ -1361,3 +1362,4 @@ static void Command_Zxx( uint8_t ch_index ) {
 	// do what?
 }
 
+#endif

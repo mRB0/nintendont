@@ -1,7 +1,11 @@
+#if 0
+
 #include "stdint.h"
 
 
 const rom uint8_t SPCUNIT_BINARY[] = {
+
+#ifdef VRC6BOT_MUKUNDA
 
 // <spcunit binary>
 
@@ -27,3 +31,8 @@ const rom uint8_t SPCUNIT_BINARY[] = {
 0xF3, 0xD4, 0x8, 0x80, 0x98, 0xF, 0xF2, 0x3D, 0xC8, 0x14, 0x90, 0xD2, 0x6F
 
 };
+#else
+0x00 };
+#endif
+
+#endif

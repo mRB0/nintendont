@@ -2,7 +2,7 @@
 
 #include "serial.h"
 #include "interrupts.h"
-
+#include "simpleplayer.h"
 
 void low_isr(void);
 void high_isr(void);
@@ -39,6 +39,11 @@ void high_isr(void)
 	if (PIE1bits.RCIE && PIR1bits.RCIF)
 	{
 		serial_ISR();
+	}
+	
+	if (PIE1bits.TMR1IE && PIR1bits.TMR1IF)
+	{
+		timer1_isr();
 	}
 }
 
