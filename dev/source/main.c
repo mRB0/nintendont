@@ -9,6 +9,7 @@
 
 #include "player.h"
 
+#include "simpleplayer.h"
 
 #include "circbuf.h"
 #include "interrupts.h"
@@ -384,26 +385,26 @@ void play_fun_tones()
 		ACTIVATE_VRC6();
 		
 		port_write(0x9000, 0x0f | (duty << 4));
-		port_write(0xa000, 0x0f | (duty << 4));
+		port_write(0xb000, 0x0f | (duty << 4));
 		
 		// set pitches
 		
-		port_write(0xa001, 0xa7);
-		port_write(0xa002, 0x83);
+		port_write(0xb001, 0xa7);
+		port_write(0xb002, 0x83);
 		port_write(0x9001, 0xe7);
 		port_write(0x9002, 0x82);
 		
 		Delay10KTCYx(75);
 		
-		port_write(0xa001, 0xe7);
-		port_write(0xa002, 0x82);
+		port_write(0xb001, 0xe7);
+		port_write(0xb002, 0x82);
 		port_write(0x9001, 0x72);
 		port_write(0x9002, 0x82);
 		
 		Delay10KTCYx(75);
 		
-		port_write(0xa001, 0x72);
-		port_write(0xa002, 0x82);
+		port_write(0xb001, 0x72);
+		port_write(0xb002, 0x82);
 		port_write(0x9001, 0xd6);
 		port_write(0x9002, 0x81);
 
@@ -415,6 +416,7 @@ void play_fun_tones()
 	}
 }
 
+// sharp by 1 step
 const rom uint16_t frequencies[] = { 1024, 966, 913, 862, 814, 768, 725, 685, 647, 611, 577, 545, 514, 486, 458, 433, 409, 386, 364, 344, 325, 307, 290, 273, 258, 244, 230, 217, 205, 194 };
 const rom uint8_t keys[] = { 'z', 's', 'x', 'd', 'c', 'v','g','b','h','n','j','m','q','2','w','3','e','r','5','t','6','y','7','u','i','9','o','0','p' };
 
@@ -424,9 +426,13 @@ void fun_keyboard(void)
 	uint8_t c;
 	uint8_t duty = 5;
 	
-	ACTIVATE_VRC6();
+	putrsUSART("Hello a fun keyboard!!\r\n");
 	
-	port_write(0xa000, 0x0f | ((duty-1)<<4));
+	//ACTIVATE_VRC6();
+	
+	ports_vrc6_write( PORT_VRC6B0, 0x1f/* | ((duty-1)<<4)*/);
+	//ports_vrc6_write( PORT_VRC690, 0x0f | ((duty-1)<<4));
+	port_write(0x9000, 0x0f | ((duty-1)<<4));
 	
 	for(;;)
 	{
@@ -447,23 +453,33 @@ void fun_keyboard(void)
 				{
 					if (c == keys[i])
 					{
-						port_write(0xa001, 0x00 | frequencies[i]);
-						port_write(0xa002, 0x80 | (frequencies[i] >> 8));
+						
+						ports_vrc6_write( PORT_VRC691, 0x00 | frequencies[i]);
+						ports_vrc6_write( PORT_VRC692, 0x80 | (frequencies[i] >> 8));
+						//ports_vrc6_write( PORT_VRC6B1, 0x00 | frequencies[i]);
+						//ports_vrc6_write( PORT_VRC6B2, 0x80 | (frequencies[i] >> 8));
+						port_write(0x9001, 0x00 | frequencies[i]);
+						port_write(0x9002, 0x80 | (frequencies[i] >> 8));
 					}
 				}
 				
 				switch(c)
 				{
+					
 					case ' ':
-						port_write(0xa002, 0x00);
+						ports_vrc6_write(PORT_VRC6B2, 0x00);
+						ports_vrc6_write(PORT_VRC692, 0x00);
+						//port_write(0xa002, 0x00);
 						break;
+					
 					case ',':
 						duty = duty - 1;
 						if (duty == 0)
 						{
 							duty = 8;
 						}
-						port_write(0xa000, 0x0f | ((duty-1)<<4));
+						ports_vrc6_write(PORT_VRC690, 0x0f | ((duty-1)<<4));
+						//port_write(0xa000, 0x0f | ((duty-1)<<4));
 						break;
 					case '.':
 						duty = duty + 1;
@@ -471,8 +487,10 @@ void fun_keyboard(void)
 						{
 							duty = 1;
 						}
-						port_write(0xa000, 0x0f | ((duty-1)<<4));
+						ports_vrc6_write(PORT_VRC690, 0x0f | ((duty-1)<<4));
+						//port_write(0xa000, 0x0f | ((duty-1)<<4));
 						break;
+					
 				}
 			}
 			
@@ -497,18 +515,28 @@ void main(void)
 	
 	// play fun tones
 	
-	fun_keyboard();
+	//fun_keyboard();
 	
+	
+	simpleplayer();
 	//play_fun_tones();
 	
 	mem_load(0); // external
 	mem_load(1); // internal
 	
 	//for(;;);
+
+#if 0
 	
 	Player_SetIBank(INTERNAL_MEM_BASE);
-	//Player_Init();
-	Player_Reset();
+	Player_Init();
+	//Player_Reset();
 	Player_Start(0);
 	
+	for(;;)
+	{
+		Delay10TCYx(1);
+		Player_OnTick();
+	}
+#endif
 }

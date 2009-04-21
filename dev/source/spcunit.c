@@ -1,3 +1,5 @@
+#if 0
+
 #include <delays.h>
 #include <stdio.h>
 
@@ -42,11 +44,17 @@ static void UploadDriver( void ) {
 	uint8_t data;
 	uint8_t PT0;
 	uint16_t BINARY_READ=0, block_idx, block_len = 64, write_addr=0;
+	uint32_t read_addr=0;
+	
+	read_addr = 0;
+	
+	Nop();
+	Nop();
 	
 	ISR_disable();
 	
 	ports_spc_open();
-
+	
 	// Confirm AA, BB
 	while( ports_spc_read(0) != 0xAA ) {}
 	while( ports_spc_read(1) != 0xBB ) {}
@@ -68,7 +76,7 @@ static void UploadDriver( void ) {
 	
 	Delay100TCYx(100);
 	
-	printf("BOOT_ADDRESS_H = %02hhx, BOOT_ADDRESS_L = %02hhx, write_addr = %04hx\r\n", BOOT_ADDRESS_H, BOOT_ADDRESS_L, write_addr);
+	//printf("BOOT_ADDRESS_H = %02hhx, BOOT_ADDRESS_L = %02hhx, write_addr = %04hx\r\n", BOOT_ADDRESS_H, BOOT_ADDRESS_L, write_addr);
 	
 	//ports_spc_write(2, write_addr >> 8);
 	//ports_spc_write(3, write_addr & 0xff);
@@ -77,10 +85,13 @@ static void UploadDriver( void ) {
 	//ports_spc_write(0, PT0);
 	//while( ports_spc_read(0) != PT0 );
 	
+	//printf("<= starting the reads =>\n\r");
+	
 	// block transfer
-	for(; write_addr < SPCUNIT_BINARY_LEN; write_addr += block_len);
+	for(; read_addr < SPCUNIT_BINARY_LEN; write_addr += block_len, read_addr += block_len)
 	{
-		printf("write_addr = %04hx\r\n", write_addr);
+		//printf("read_addr = %04hx, ", read_addr);
+		//printf("write_addr = %04hx\r\n", write_addr);
 		ports_spc_write(2, write_addr >> 8);
 		ports_spc_write(3, write_addr & 0xff);
 		ports_spc_write(1, 1);
@@ -90,19 +101,20 @@ static void UploadDriver( void ) {
 		PT0 = 0;
 		
 		// --BLOCK TRANSFER START--
-		for( block_idx = 0; (block_idx < block_len) && (write_addr+block_idx < SPCUNIT_BINARY_LEN); block_idx++ ) {
-			printf("=> block_idx = %04hx\r\n", block_idx);
-			ports_spc_write( 1, SPCUNIT_BINARY[write_addr + block_idx] );
+		for( block_idx = 0; (block_idx < block_len) && (read_addr+block_idx < SPCUNIT_BINARY_LEN); block_idx++ ) {
+			//printf("=> block_idx = %04hx\r\n", block_idx);
+			ports_spc_write( 1, SPCUNIT_BINARY[read_addr + block_idx] );
 			ports_spc_write( 0, PT0 );
 			while( ports_spc_read(0) != PT0 ) {}
 			PT0++;
 		}
-		printf("write_addr = %04hx, block_idx = %04hx\r\n", write_addr, block_idx);
+		//printf("read_addr = %04hx, write_addr = %04hx, block_idx = %04hx\r\n", read_addr, write_addr, block_idx);
 		PT0 += 3;
 		if (PT0 == 0)
 		{
 			PT0 += 3;
 		}
+		
 	}	
 
 	//PT0++;
@@ -143,8 +155,7 @@ void SPCU_BOOT( void ) {
 }
 
 static void SPC_COMMAND( uint8_t cmd, uint8_t param1, uint8_t param2 ) {
-	// xxx
-	return;
+	/* xxx */ return;
 	
 	ports_spc_open();
 		while( ports_spc_read(1) != SPC_V ) {}
@@ -158,9 +169,7 @@ static void SPC_COMMAND( uint8_t cmd, uint8_t param1, uint8_t param2 ) {
 }
 
 void SPCU_LOAD( uint16_t LOOP ) {
-	// xxx
-	return;
-
+	/* xxx */ return;
 	ports_spc_open();
 		while( ports_spc_read( 1 ) != SPC_V ) {}
 
@@ -175,8 +184,7 @@ void SPCU_LOAD( uint16_t LOOP ) {
 }
 
 void SPCU_TRANSFER( uint16_t DATA, uint8_t FINAL ) {
-	// xxx
-	return;
+	/* xxx */ return;
 	ports_spc_open();
 		while( ports_spc_read( 1 ) != SPC_V ) {}
 		ports_spc_write( 2, DATA & 0xFF );
@@ -258,3 +266,4 @@ void SPCU_VOL( uint8_t INDEX, uint8_t VOLUME, uint8_t PANNING ) {
 void SPCU_KON( uint8_t INDEX, uint8_t VOLUME, uint8_t SOURCE ) {
 	SPC_COMMAND( CMD_KON + INDEX, VOLUME, SOURCE );
 }
+#endif

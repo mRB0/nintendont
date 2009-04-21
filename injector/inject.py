@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-SERDEV = "/dev/ttyS0"
+SERDEV = "COM13"
 BAUDRATE = 115200
 
 BOTRDY = '\x51'
@@ -112,6 +112,6 @@ if __name__ == '__main__':
   print "=> sending data for %s" % (sys.argv[1],)
   go(ser, False, sys.argv[1], False)
   print "=> sending data for %s" % (sys.argv[2],)
-  go(ser, True, sys.argv[2], True)
+  go(ser, True, sys.argv[2], False)
   print "=> starting serial dump!"
   dump_serial(ser)

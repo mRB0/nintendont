@@ -6,6 +6,7 @@
 
 #include "ports.h"
 #include "flash.h"
+#include "stdio.h"
 
 #ifdef __PLAYERDEV__
 
@@ -168,12 +169,15 @@ void ports_spc_write(uint8_t port, uint8_t data) {
 
 void ports_vrc6_write(uint8_t port, uint8_t data) {
 	//insert codes, port is 0,1,2,4,5,6,8,9,10
+	
+	ACTIVATE_VRC6();
 	LATA = port & 0x3;
 	LATCbits.LATC0 = (port >> 2) & 0x1;
 	LATCbits.LATC1 = (port >> 3) & 0x1;
 	LATCbits.LATC2 = 0;
 	
 	port_putc(data);
+	DEACTIVATE_VRC6();
 }
 
 
@@ -292,6 +296,9 @@ void port_putc(uint8_t data)
 
 void port_write(uint24_t addr, uint8_t data)
 {
+	//printf("0x%06Hx <= 0x%02hhx\n\r", addr, data);
+	//Nop();
+	//Nop();
 	set_addr(addr);
 	port_putc(data);
 }
