@@ -78,8 +78,8 @@ static void UploadDriver( void ) {
 	
 	//printf("BOOT_ADDRESS_H = %02hhx, BOOT_ADDRESS_L = %02hhx, write_addr = %04hx\r\n", BOOT_ADDRESS_H, BOOT_ADDRESS_L, write_addr);
 	
-	//ports_spc_write(2, write_addr >> 8);
-	//ports_spc_write(3, write_addr & 0xff);
+	//ports_spc_write(3, write_addr >> 8);
+	//ports_spc_write(2, write_addr & 0xff);
 	//ports_spc_write(1, 1);
 	PT0 = 0xCC;
 	//ports_spc_write(0, PT0);
@@ -92,8 +92,8 @@ static void UploadDriver( void ) {
 	{
 		//printf("read_addr = %04hx, ", read_addr);
 		//printf("write_addr = %04hx\r\n", write_addr);
-		ports_spc_write(2, write_addr >> 8);
-		ports_spc_write(3, write_addr & 0xff);
+		ports_spc_write(2, write_addr & 0xff);
+		ports_spc_write(3, write_addr >> 8);
 		ports_spc_write(1, 1);
 		ports_spc_write(0, PT0);
 		while( ports_spc_read(0) != PT0 );
@@ -131,6 +131,7 @@ static void UploadDriver( void ) {
 	SPC_V = 0;
 
 	ports_spc_close();
+
 }
 
 #endif
