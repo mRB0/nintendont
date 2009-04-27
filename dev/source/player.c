@@ -1185,6 +1185,7 @@ static void Command_RetriggerNote( uint8_t ch_index ) {
 			case 2:
 			case 3:
 			case 4:
+			case 5:
 				ch->Volume -= 1<<(y-1);
 				if( ch->Volume > 64 ) ch->Volume = 0;
 				break;
