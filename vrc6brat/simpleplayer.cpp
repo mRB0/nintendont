@@ -109,7 +109,7 @@ void simpleplayer() {
     enable_timer3_interrupt();
     ticked = 0;
 
-    // for(;;);
+//    for(;;);
     
 	// start player
     for(;;) {
@@ -144,7 +144,7 @@ void simpleplayer() {
         // process channel data
 			
 			
-        enbits = fancysong[song_offs++];
+        enbits = pgm_read_byte(fancysong + (song_offs++));
 			
         for(i=0; i<9; i++)
         {
@@ -158,7 +158,7 @@ void simpleplayer() {
 				
             if ((enbits>>regoffs) & 0x01)
             {
-                regs[i] = fancysong[song_offs];
+                regs[i] = pgm_read_byte(fancysong + song_offs);
                 //if (chan_offs == 0) {
                 /*
                   port_write(

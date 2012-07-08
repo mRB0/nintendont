@@ -2,9 +2,9 @@
 #define FANCYSONG_H_
 
 #include <stdint.h>
+#include <avr/pgmspace.h>
 
-extern uint32_t const fancysong_len;
-
-extern uint8_t const fancysong[];
+extern prog_uint8_t fancysong[] PROGMEM;
+extern prog_uint32_t fancysong_len;
 
 #endif
