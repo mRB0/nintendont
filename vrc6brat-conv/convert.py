@@ -61,7 +61,7 @@ def convert(inpath):
                     else:
                         c5speed = itfile.Samples[note.Instrument - 1].C5Speed
                         state.hz = pow(2, float(note.Note - 60) / 12) * c5speed
-                    state.vol = 15 if col < 3 else 5
+                    state.vol = 15 if col < 3 else 6
                     state.enable = True
                     state.trig = True
 
@@ -69,12 +69,12 @@ def convert(inpath):
                     if col < 3:
                         state.vol = min(note.Volume / 4, 15)
                     else:
-                        state.vol = min(int(note.Volume / 10.6), 5)
+                        state.vol = min(int(note.Volume / 9.14), 6)
 
                 if note.Instrument is not None:
                     if (col >= 3 or
                         (col < 3 and note.Instrument >= 8 and note.Instrument <= 15)):
-                            state._replace(sample=note.Instrument)
+                            state.sample = note.Instrument
                 
                 # process commands
                 if note.Effect == 1 and note.EffectArg:
@@ -196,13 +196,13 @@ def convert(inpath):
     if sample_map:
         i = 0
         sample_lens = []
-        for (it_smp, c_smp) in sample_map.items():
+        for (it_smp, c_smp) in sorted(sample_map.iteritems(), key=lambda x: x[1]):
             data = itfile.Samples[it_smp-1].SampleData
             altered_data = ''.join([chr((0xff & (128 + ord(b))) >> 2) for b in data])
             while '!!!' in altered_data: # work around arduino bootloader bug
                 altered_data = altered_data.replace('!!!', '!"!')
             sample_lens.append(len(altered_data))
-            cdata = 'static prog_uint8_t sample_%d[] PROGMEM = { %s };\n' %(i, ', '.join(['0x%02X' %(0xff & ord(s)) for s in altered_data]),)
+            cdata = 'static prog_uint8_t sample_%d[] PROGMEM = { %s };\n' %(c_smp, ', '.join(['0x%02X' %(0xff & ord(s)) for s in altered_data]),)
             cfile.write(cdata)
             i += 1
 
