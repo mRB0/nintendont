@@ -10,7 +10,6 @@
 #include "fancysong.h"
 #include "ports.h"
 
-#include "waves.h"
 #include "vrc6brat.h"
 
 const uint16_t player_frequencies[] = { 4095, 3865, 3648, 3443, 3250, 3067, 2895, 2733, 2579, 2434, 2298, 2169, 2047, 1932, 1824, 1721, 1625, 1533, 1447, 1366, 1289, 1217, 1149, 1084, 1023, 966, 912, 860, 812, 766, 723, 683, 644, 608, 574, 542, 511, 483, 456, 430, 406, 383, 361, 341, 322, 304, 287, 271, 255, 241, 228, 215, 203, 191, 180, 170, 161, 152, 143, 135, 127, 120, 114, 107, 101, 95, 90, 85, 80, 76, 71, 67, 63, 60, 57, 53, 50, 47, 45, 42, 40, 38, 35, 33, 31, 30, 28, 26, 25, 23, 22, 21, 20, 19, 17, 16 };
@@ -71,7 +70,11 @@ void setup_timer3() {
 }
 
 
-volatile uint8_t ticked = 0;
+static volatile uint8_t ticked = 0;
+static volatile uint8_t _smp_num = 0;
+static volatile uint8_t _smp_vol = 6;
+static volatile uint16_t _smp_offs = 0;
+static volatile uint8_t _smp_stride = 0;
 
 void simpleplayer() {
     disable_timer_interrupt();
@@ -92,9 +95,14 @@ void simpleplayer() {
 	uint8_t chan_offs = 0;
 	uint8_t reg_offs;
 	
-	uint8_t enbits;
+	uint16_t enbits;
 	uint8_t i;
 	uint8_t regs[9];
+
+    uint8_t smp_num = 0xfe;
+    uint16_t intr_period = 0x1000;
+    uint8_t smp_stride = 0;
+    uint8_t smp_vol = 0;
 	
     delay(200);
 	
@@ -106,7 +114,7 @@ void simpleplayer() {
     setup_timer3();
 
     enable_timer_interrupt();
-    enable_timer3_interrupt();
+//    enable_timer3_interrupt();
     ticked = 0;
 
 //    for(;;);
@@ -117,17 +125,10 @@ void simpleplayer() {
         }
         ticked = 0;
         
+        // update registers from last read
+        
         for(chan_offs = 0; chan_offs < 3; chan_offs ++)
         {
-/*
-  for(reg_offs = 2; reg_offs >= 0 && reg_offs < 3; reg_offs --, i ++)
-  {
-  port_write(
-  0x8000 | (((uint24_t)chan_offs+(uint24_t)1) << (uint24_t)12) | (uint24_t)(reg_offs),
-  regs[chan_offs*3 + reg_offs]
-  );
-  }
-*/
             for(reg_offs = 2; reg_offs >= 0 && reg_offs < 3; reg_offs --)
             {
                 port_write(
@@ -136,38 +137,70 @@ void simpleplayer() {
 					);
             }
         }
-			
-        //for(i=0; i<5; i++) { Delay100TCYx(255); }
-			
-        //printf("huk\n\r");
-			
+
+        // update sample playback from last read
+
+        if (smp_num == 0xff) {
+            // no change to existing note
+        } else if (smp_num == 0xfe) {
+            // stop current sample
+            disable_timer3_interrupt();
+        } else {
+            // play new sample (and reset offset)
+            disable_timer3_interrupt();
+            _smp_num = smp_num;
+            _smp_offs = 0;
+            enable_timer3_interrupt();
+        }
+
+        _smp_vol = smp_vol;
+        _smp_stride = smp_stride;
+        OCR3A = intr_period;
+
+        //
         // process channel data
-			
-			
-        enbits = pgm_read_byte(fancysong + (song_offs++));
-			
-        for(i=0; i<9; i++)
+        //
+        
+        enbits = (((uint16_t)pgm_read_byte(fancysong + song_offs)) << 8) |
+            (uint16_t)pgm_read_byte(fancysong + song_offs + 1);
+        song_offs += 2;
+		
+        for(i = 0; i < 9; i++)
         {
-            uint8_t regoffs;
-            regoffs = i;
-            //ISR_disable();
+            // vrc6 registers
+            
             // decompress pattern data
-            // 8th and 9th byte share the 8th bit (MSB)
-            if (regoffs == 8) { regoffs = 7; }
 				
-				
-            if ((enbits>>regoffs) & 0x01)
+            if ((enbits >> (15 - i)) & 0x01)
             {
                 regs[i] = pgm_read_byte(fancysong + song_offs);
-                //if (chan_offs == 0) {
-                /*
-                  port_write(
-                  0x8000 | (((uint24_t)chan_offs+(uint24_t)1) << (uint24_t)12) | (uint24_t)reg_offs,
-                  fancysong[song_offs]
-                  );
-                */
-                //}
                 song_offs++;
+            }
+        }
+        
+        for(; i < 16; i++)
+        {
+            // sample playback
+            if ((enbits >> (15 - i)) & 0x01)
+            {
+                switch(i) {
+                case 9: // sample number
+                    smp_num = pgm_read_byte(fancysong + song_offs++);
+                    break;
+                case 10: // interrupt period
+                    intr_period = (((uint16_t)pgm_read_byte(fancysong + song_offs)) << 8) |
+                        (uint16_t)pgm_read_byte(fancysong + song_offs + 1);
+                    song_offs += 2;
+                    break;
+                case 11: // sample stride
+                    smp_stride = pgm_read_byte(fancysong + song_offs++);
+                    break;
+                case 12: // sample vol
+                    smp_vol = pgm_read_byte(fancysong + song_offs++);
+                    break;
+                default: // unknown bit set; assume we need to move 1 byte in song offs
+                    song_offs++;
+                }
             }
         }
 			
@@ -181,17 +214,17 @@ void simpleplayer() {
 }
 
 
-static volatile uint8_t vol = 6;
-static volatile uint16_t ax = 0;
-static volatile uint16_t smpoffs = 0;
-static volatile uint8_t entrop = 2;
-static volatile uint8_t per = 0;
 
 ISR(TIMER3_COMPA_vect) {
-  
-    uint8_t valb = pgm_read_byte(wavelet + smpoffs);
-    smpoffs = (smpoffs + 1) % wavelet_len;
-    valb >>= 6 - vol;
+    uint8_t *smp_pnt = samples[_smp_num];
+    uint8_t valb = pgm_read_byte(smp_pnt + _smp_offs);
+    
+    _smp_offs = (_smp_offs + _smp_stride);
+    if (_smp_offs >= pgm_read_word(sample_lens + _smp_num)) {
+        //disable_timer3_interrupt();
+        _smp_offs = 0;
+    }
+    valb >>= 6 - _smp_vol;
     PORTK = valb;
     // for (uint8_t i = 0; i < 6; i++) {
     //     uint8_t writeval;
