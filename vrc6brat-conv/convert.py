@@ -198,8 +198,11 @@ def convert(inpath):
         sample_lens = []
         for (it_smp, c_smp) in sample_map.items():
             data = itfile.Samples[it_smp-1].SampleData
-            sample_lens.append(len(data))
-            cdata = 'static prog_uint8_t sample_%d[] PROGMEM = { %s };\n' %(i, ', '.join(['0x%02X' %((0xff & ord(s)) >> 2) for s in data]),)
+            altered_data = ''.join([chr((0xff & (128 + ord(b))) >> 2) for b in data])
+            while '!!!' in altered_data: # work around arduino bootloader bug
+                altered_data = altered_data.replace('!!!', '!"!')
+            sample_lens.append(len(altered_data))
+            cdata = 'static prog_uint8_t sample_%d[] PROGMEM = { %s };\n' %(i, ', '.join(['0x%02X' %(0xff & ord(s)) for s in altered_data]),)
             cfile.write(cdata)
             i += 1
 
