@@ -216,32 +216,29 @@ void simpleplayer() {
 
 
 ISR(TIMER3_COMPA_vect) {
-    uint8_t *smp_pnt = samples[_smp_num];
-    uint8_t valb = pgm_read_byte(smp_pnt + _smp_offs);
+    struct sample_info *smp = &(samples[_smp_num]);
     
-    _smp_offs = (_smp_offs + _smp_stride);
-    if (_smp_offs >= pgm_read_word(sample_lens + _smp_num)) {
-        //disable_timer3_interrupt();
-        _smp_offs = 0;
-    }
+    uint8_t *smp_pnt = smp->p_smp;
+    uint8_t valb = pgm_read_byte(smp_pnt + _smp_offs);
     valb >>= 6 - _smp_vol;
     PORTK = valb;
-    // for (uint8_t i = 0; i < 6; i++) {
-    //     uint8_t writeval;
-    //     writeval = 0x01 & (valb >> i);
-    //     digitalWrite(PinBase + i, writeval);
-    // }
-  
-    // ax = (ax + 1) % (0x1000 - (OCR3A - 0x400));
-    // if (!ax) {
-    //     if (vol == 0) {
-    //         vol = 6;
-    //         // per = (per + 1) % 8;
-    //         // OCR3A = 0x400 + (per * 0x200);
-    //     } else {
-    //         vol--;
-    //     }
-    // }
+    
+    _smp_offs = (_smp_offs + _smp_stride);
+    if (smp->loop_en) {
+        if (_smp_offs >= smp->loop_end) {
+            // Push the sample back to the loop start + the amount
+            // we've walked off the loop end.  We also mod smp->len
+            // here, because we don't want to accidentally walk off
+            // the end of the whole sample... this is a little hacky,
+            // but you shouldn't have such short loops anyway.
+            _smp_offs = ((_smp_offs % smp->loop_end) + smp->loop_start) % smp->len;
+        }
+    } else {
+        if (_smp_offs >= smp->len) {
+            _smp_offs = 0;
+            disable_timer3_interrupt();
+        }
+    }
 };
 
 volatile uint8_t tickScale = 0;
@@ -252,11 +249,11 @@ ISR(TIMER2_COMPA_vect) {
     if (tickScale == 0) {
         ticked = 1;
     }
-        ledscale = (ledscale + 1) & 0x7;
-        if (!ledscale) {
-            ledstate = !ledstate;
-            digitalWrite(13, ledstate);
-        }
+    ledscale = (ledscale + 1) & 0x7;
+    if (!ledscale) {
+        ledstate = !ledstate;
+        digitalWrite(13, ledstate);
+    }
 };
 
 

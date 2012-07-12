@@ -184,8 +184,10 @@ def convert(inpath):
                     
     cfile = open(outfile_fmt %{'extension': 'cpp'}, 'w')
 
+    cfile.write('#include "fancysong.h"\n')
     cfile.write('#include <stdint.h>\n')
     cfile.write('#include <avr/pgmspace.h>\n')
+    
     cfile.write('\n')
     
     fancysong_data = ',\n'.join(['\t' + ', '.join(['0x%02X' %(0xff & i) for i in e]) for e in outraw])
@@ -195,22 +197,28 @@ def convert(inpath):
 
     if sample_map:
         i = 0
-        sample_lens = []
+        sample_info = {}
         for (it_smp, c_smp) in sorted(sample_map.iteritems(), key=lambda x: x[1]):
-            data = itfile.Samples[it_smp-1].SampleData
+            itSample = itfile.Samples[it_smp-1]
+            data = itSample.SampleData
             altered_data = ''.join([chr((0xff & (128 + ord(b))) >> 2) for b in data])
             while '!!!' in altered_data: # work around arduino bootloader bug
                 altered_data = altered_data.replace('!!!', '!"!')
-            sample_lens.append(len(altered_data))
             cdata = 'static prog_uint8_t sample_%d[] PROGMEM = { %s };\n' %(c_smp, ', '.join(['0x%02X' %(0xff & ord(s)) for s in altered_data]),)
             cfile.write(cdata)
+
+            sample_info[c_smp] = '{ %s, %d, %d, %d, %d }' %('sample_%d' %(c_smp,),
+                                                            len(altered_data),
+                                                            1 if itSample.IsLooped else 0,
+                                                            itSample.LoopBegin,
+                                                            itSample.LoopEnd)
+            
             i += 1
 
-        sample_list = ', '.join(['sample_%d' %x for x in range(i)])
-        sample_len_list = ', '.join(map(str, sample_lens))
-        
-        cfile.write('\nprog_uint8_t *samples[] = { %s };\n' %sample_list)
-        cfile.write('prog_uint16_t sample_lens[] PROGMEM = { %s };\n' %sample_len_list)
+        sample_info_list = ',\n'.join(['    ' + sample_info[i]
+                                       for i
+                                       in sorted(sample_info.keys())])
+        cfile.write('struct sample_info samples[] = {\n%s\n};\n' %sample_info_list)
         
     cfile.close()
     
@@ -222,12 +230,18 @@ def convert(inpath):
 #include <stdint.h>
 #include <avr/pgmspace.h>
 
+struct sample_info {
+    prog_uint8_t *p_smp;
+    uint16_t len;
+    uint8_t loop_en;
+    uint16_t loop_start;
+    uint16_t loop_end;
+};
+
 extern prog_uint8_t fancysong[] PROGMEM;
 extern prog_uint32_t fancysong_len;
 
-extern prog_uint8_t *samples[];
-extern prog_uint16_t sample_lens[] PROGMEM;
-
+extern struct sample_info samples[];
 
 #endif
 ''')
